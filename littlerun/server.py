@@ -63,13 +63,13 @@ class _Base(BaseModel):
 class CompletionRequest(_Base):
     prompt: str | list[str]
     echo: bool = False
-    logprobs: int | None = None
+    logprobs: int | None = Field(default=None, ge=0, le=5)
     suffix: str | None = None
 
     def check_unsupported(self):
         super().check_unsupported()
-        if self.echo or self.logprobs is not None or self.suffix is not None:
-            raise RequestError("echo, logprobs and suffix are not supported", "echo")
+        if self.echo or self.suffix is not None:
+            raise RequestError("echo and suffix are not supported", "echo")
         if isinstance(self.prompt, list) and len(self.prompt) != 1:
             raise RequestError("exactly one prompt is supported", "prompt")
 
@@ -97,6 +97,8 @@ class ChatRequest(_Base):
     tool_choice: str | dict | None = None
     response_format: dict | None = None
     chat_template_kwargs: dict | None = None
+    logprobs: bool = False
+    top_logprobs: int | None = Field(default=None, ge=0, le=20)
 
     def check_unsupported(self):
         super().check_unsupported()
@@ -106,6 +108,8 @@ class ChatRequest(_Base):
             raise RequestError("only response_format type 'text' is supported", "response_format")
         if self.chat_template_kwargs and set(self.chat_template_kwargs) - {"enable_thinking"}:
             raise RequestError("only chat_template_kwargs.enable_thinking is supported", "chat_template_kwargs")
+        if self.top_logprobs is not None and not self.logprobs:
+            raise RequestError("top_logprobs requires logprobs=true", "top_logprobs")
         if self.messages[-1].role == "assistant":
             raise RequestError("last message must not be from the assistant", "messages")
 
@@ -197,7 +201,8 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
             return resp
         prompt = body.prompt if isinstance(body.prompt, str) else body.prompt[0]
         ids = engine.runner.encode(prompt)
-        h = engine.submit(GenRequest(ids, body.max_tokens or default_max_tokens, _sampling(body), body.stop or []))
+        h = engine.submit(GenRequest(ids, body.max_tokens or default_max_tokens, _sampling(body), body.stop or [],
+                                     logprobs=body.logprobs))
         return await _respond(h, body, request, chat=False)
 
     @app.post("/v1/chat/completions")
@@ -209,16 +214,37 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
         thinking = (body.chat_template_kwargs or {}).get("enable_thinking", True)
         ids = engine.runner.encode(engine.runner.chat_prompt(msgs, bool(thinking)))
         max_tokens = body.max_completion_tokens or body.max_tokens or default_max_tokens
-        h = engine.submit(GenRequest(ids, max_tokens, _sampling(body), body.stop or []))
+        h = engine.submit(GenRequest(ids, max_tokens, _sampling(body), body.stop or [],
+                                     logprobs=(body.top_logprobs or 0) if body.logprobs else None))
         return await _respond(h, body, request, chat=True)
+
+    def _lp_chat(entries):
+        r = engine.runner
+
+        def item(tid, lp):
+            t = r.token_text(tid)
+            return {"token": t, "logprob": lp, "bytes": list(t.encode("utf-8"))}
+
+        return [{**item(e["id"], e["logprob"]), "top_logprobs": [item(i, v) for i, v in e["top"]]} for e in entries]
+
+    def _lp_completion(entries, offset=0):
+        r = engine.runner
+        toks = [r.token_text(e["id"]) for e in entries]
+        offs, pos = [], offset
+        for t in toks:
+            offs.append(pos)
+            pos += len(t)
+        return {"tokens": toks, "token_logprobs": [e["logprob"] for e in entries],
+                "top_logprobs": [{r.token_text(i): v for i, v in e["top"]} for e in entries], "text_offset": offs}
 
     async def _respond(h, body: _Base, request: Request, *, chat: bool):
         rid = ("chatcmpl-" if chat else "cmpl-") + uuid.uuid4().hex[:24]
         created = int(time.time())
         obj = "chat.completion" if chat else "text_completion"
 
+        want_lp = h.req.logprobs is not None
         if not body.stream:
-            parts, done = [], None
+            parts, done, lps = [], None, []
             try:
                 while done is None:
                     ev = await asyncio.to_thread(_next_event, h, 0.25)
@@ -227,6 +253,7 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
                             h.cancel()
                             return JSONResponse(status_code=499, content={})
                         continue
+                    lps.extend(ev.logprobs or [])
                     if ev.kind == "delta":
                         parts.append(ev.text)
                     elif ev.kind == "error":
@@ -238,15 +265,19 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
                     h.cancel()
             text = "".join(parts)
             choice = ({"index": 0, "message": {"role": "assistant", "content": text},
+                       "logprobs": {"content": _lp_chat(lps)} if want_lp else None,
                        "finish_reason": done.finish_reason} if chat else
-                      {"index": 0, "text": text, "logprobs": None, "finish_reason": done.finish_reason})
+                      {"index": 0, "text": text, "logprobs": _lp_completion(lps) if want_lp else None,
+                       "finish_reason": done.finish_reason})
             return {"id": rid, "object": obj, "created": created, "model": model_id, "choices": [choice],
                     "usage": done.usage}
 
         include_usage = bool((body.stream_options or {}).get("include_usage"))
         chunk_obj = "chat.completion.chunk" if chat else "text_completion"
 
-        def chunk(delta_text: str | None, finish: str | None, role: bool = False, usage=None, choices=True):
+        sent_chars = [0]
+
+        def chunk(delta_text: str | None, finish: str | None, role: bool = False, usage=None, choices=True, lps=None):
             c = {"id": rid, "object": chunk_obj, "created": created, "model": model_id}
             if choices:
                 if chat:
@@ -256,8 +287,12 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
                     if delta_text is not None:
                         delta["content"] = delta_text
                     c["choices"] = [{"index": 0, "delta": delta, "finish_reason": finish}]
+                    if want_lp and not role:
+                        c["choices"][0]["logprobs"] = {"content": _lp_chat(lps or [])}
                 else:
-                    c["choices"] = [{"index": 0, "text": delta_text or "", "logprobs": None, "finish_reason": finish}]
+                    lp = _lp_completion(lps or [], sent_chars[0]) if want_lp else None
+                    sent_chars[0] += len(delta_text or "")
+                    c["choices"] = [{"index": 0, "text": delta_text or "", "logprobs": lp, "finish_reason": finish}]
             else:
                 c["choices"] = []
             if usage is not None:
@@ -276,14 +311,14 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
                             return
                         continue
                     if ev.kind == "delta":
-                        yield chunk(ev.text, None)
+                        yield chunk(ev.text, None, lps=ev.logprobs)
                     elif ev.kind == "error":
                         err = {"error": {"message": ev.error, "type": "server_error"}}
                         yield f"data: {json.dumps(err)}\n\n"
                         yield "data: [DONE]\n\n"
                         return
                     else:
-                        yield chunk(None if chat else "", ev.finish_reason)
+                        yield chunk(None if chat else "", ev.finish_reason, lps=ev.logprobs)
                         if include_usage:
                             yield chunk(None, None, usage=ev.usage, choices=False)
                         yield "data: [DONE]\n\n"

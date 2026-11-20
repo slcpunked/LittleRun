@@ -128,7 +128,8 @@ def test_chat_stream_order_done_and_usage():
     ({"model": "fake", "prompt": "a", "n": 2}, 400, "n"),
     ({"model": "fake", "prompt": "a", "presence_penalty": 3}, 400, "presence_penalty"),
     ({"model": "fake", "prompt": "a", "repetition_penalty": 0}, 400, "repetition_penalty"),
-    ({"model": "fake", "prompt": "a", "logprobs": 2}, 400, "echo"),
+    ({"model": "fake", "prompt": "a", "echo": True}, 400, "echo"),
+    ({"model": "fake", "prompt": "a", "logprobs": 6}, 400, "logprobs"),
     ({"model": "fake", "prompt": "a", "max_tokens": 0}, 400, "max_tokens"),
     ({"model": "fake", "prompt": "a", "max_tokens": 64}, 400, "max_tokens"),
     ({"model": "other", "prompt": "a"}, 404, "model"),
@@ -233,3 +234,33 @@ def test_client_disconnect_cancels_request():
     t.join(5)
     assert h.state == State.CANCELLED, h.state
 
+
+
+def test_completion_logprobs_nonstream_and_stream():
+    _, c = make()
+    body = {"model": "fake", "prompt": "w", "max_tokens": 10, "temperature": 0, "logprobs": 2}
+    r = c.post("/v1/completions", json=body).json()["choices"][0]
+    lp = r["logprobs"]
+    assert lp["tokens"][:3] == ["x", "y", "z"] and len(lp["tokens"]) == 4  # x y z + EOS
+    assert all(abs(v) < 1e-6 for v in lp["token_logprobs"])  # fake model is certain
+    assert len(lp["top_logprobs"][0]) == 2 and lp["text_offset"][:3] == [0, 1, 2]
+    with c.stream("POST", "/v1/completions", json={**body, "stream": True}) as s:
+        ev = [json.loads(e) for e in sse(s)[:-1]]
+    toks = [t for e in ev for t in (e["choices"][0]["logprobs"] or {}).get("tokens", [])]
+    assert toks == lp["tokens"]
+
+
+def test_chat_logprobs_and_validation():
+    _, c = make()
+    base = {"model": "fake", "messages": [{"role": "user", "content": "x"}], "max_tokens": 5, "temperature": 0}
+    r = c.post("/v1/chat/completions", json={**base, "logprobs": True, "top_logprobs": 3}).json()["choices"][0]
+    content = r["logprobs"]["content"]
+    assert [e["token"] for e in content][:2] == ["y", "z"] and len(content[0]["top_logprobs"]) == 3
+    assert content[0]["bytes"] == list(b"y")
+    assert c.post("/v1/chat/completions", json=base).json()["choices"][0]["logprobs"] is None
+    bad = c.post("/v1/chat/completions", json={**base, "top_logprobs": 2})
+    assert bad.status_code == 400 and bad.json()["error"]["param"] == "top_logprobs"
+    with c.stream("POST", "/v1/chat/completions", json={**base, "logprobs": True, "stream": True}) as s:
+        ev = [json.loads(e) for e in sse(s)[:-1]]
+    toks = [t["token"] for e in ev[1:] for t in e["choices"][0].get("logprobs", {}).get("content", [])]
+    assert toks == [e["token"] for e in content]

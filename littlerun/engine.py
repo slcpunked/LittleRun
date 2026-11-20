@@ -15,6 +15,8 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
+import torch
+
 from .errors import NotReadyError, QueueFullError, RequestError
 from .sampling import SamplingParams, apply_penalties, make_generator, sample
 
@@ -40,6 +42,7 @@ class GenRequest:
     max_tokens: int
     sampling: SamplingParams
     stop: list[str] = field(default_factory=list)
+    logprobs: int | None = None  # None = off; k >= 0 = chosen-token logprob plus top-k alternatives
 
 
 @dataclass
@@ -49,6 +52,7 @@ class Event:
     finish_reason: str | None = None
     usage: dict | None = None
     error: str | None = None
+    logprobs: list | None = None  # [{"id", "logprob", "top": [(id, logprob), ...]}] for tokens since last event
 
 
 class RequestHandle:
@@ -93,6 +97,8 @@ class Runner:
 
     def encode(self, text: str) -> list[int]: ...
     def decode(self, ids: list[int]) -> str: ...
+    def token_text(self, tok: int) -> str:  # single token incl. special tokens (for logprobs)
+        return self.decode([tok])
     def chat_prompt(self, messages: list[dict], enable_thinking: bool) -> str: ...
     def new_session(self): ...  # returns obj with prefill(ids)->logits, decode(tok)->logits
     def info(self) -> dict: ...
@@ -116,6 +122,10 @@ class ModelRunner(Runner):
     def decode(self, ids):
         with self._tok_lock:
             return self.lm.tokenizer.decode(ids, skip_special_tokens=True)
+
+    def token_text(self, tok):
+        with self._tok_lock:
+            return self.lm.tokenizer.decode([tok], skip_special_tokens=False)
 
     def chat_prompt(self, messages, enable_thinking):
         with self._tok_lock:
@@ -276,6 +286,7 @@ class Engine:
         h.metrics["prefill_s"] = time.perf_counter() - t0
         h.metrics["cached_prompt_tokens"] = getattr(sess, "reused", 0)
         out: list[int] = []
+        pending_lp: list[dict] = []
         emitted = 0  # chars of decoded text already sent
         hold = max((len(s) for s in req.stop), default=1) - 1
         finish = None
@@ -284,10 +295,18 @@ class Engine:
             if h.cancelled:
                 finish = "cancelled"
                 break
+            raw = logits
             if req.sampling.penalized:
                 logits = apply_penalties(logits, req.sampling, out, req.prompt_ids)
             tok = sample(logits, req.sampling, gen)
             out.append(tok)
+            if req.logprobs is not None:  # model distribution before penalties/temperature (vLLM convention)
+                lp = torch.log_softmax(raw.detach().float().cpu(), dim=-1)
+                top = []
+                if req.logprobs > 0:
+                    v, i = torch.topk(lp, req.logprobs)
+                    top = list(zip(i.tolist(), v.tolist()))
+                pending_lp.append({"id": tok, "logprob": float(lp[tok]), "top": top})
             if t_first is None:
                 t_first = time.perf_counter()
                 h.metrics["ttft_s"] = t_first - t0
@@ -308,19 +327,22 @@ class Engine:
             while safe > emitted and text[safe - 1] == "�":
                 safe -= 1  # do not emit a partial UTF-8 sequence
             if safe > emitted:
-                h.events.put(Event("delta", text=text[emitted:safe]))
+                h.events.put(Event("delta", text=text[emitted:safe], logprobs=pending_lp or None))
+                pending_lp = []
                 emitted = safe
             logits = sess.decode(tok)
         if finish != "cancelled":
             text = text.rstrip("�") if finish == "length" else text
             if len(text) > emitted:
-                h.events.put(Event("delta", text=text[emitted:]))
+                h.events.put(Event("delta", text=text[emitted:], logprobs=pending_lp or None))
+                pending_lp = []
         n = len(out)
         dt = time.perf_counter() - (t_first or t0)
         h.metrics.update({"completion_tokens": n, "decode_tok_s": (n - 1) / dt if n > 1 and dt > 0 else None,
                           "total_s": time.perf_counter() - t0})
         h.state = State.CANCELLED if finish == "cancelled" else State.COMPLETED
-        h.events.put(Event("done", finish_reason=finish, usage=self._usage(h, n)))
+        h.events.put(Event("done", finish_reason=finish, usage=self._usage(h, n),
+                           logprobs=(pending_lp or None) if finish != "cancelled" else None))
         log.info("%s %s tokens=%d ttft=%.3fs decode=%s tok/s", h.id, finish, n, h.metrics.get("ttft_s") or -1,
                  f"{h.metrics['decode_tok_s']:.2f}" if h.metrics.get("decode_tok_s") else "n/a")
 
