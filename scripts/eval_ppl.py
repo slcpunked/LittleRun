@@ -27,6 +27,7 @@ def main():
     p.add_argument("--parquet", required=True, help="wikitext-2-raw-v1 test split parquet file")
     p.add_argument("--seqlen", type=int, default=2048)
     p.add_argument("--windows", type=int, default=0, help="0 = all windows")
+    p.add_argument("--start", type=int, default=0, help="first window index (to resume an interrupted run)")
     p.add_argument("--device", default="auto")
     p.add_argument("--dtype", default="bf16")
     p.add_argument("--factor-storage", default="compute")
@@ -46,7 +47,7 @@ def main():
     nll_sum, count, per_window = 0.0, 0, []
     head = lm.model.lm_head_weight
     t0 = time.time()
-    for i in range(n):
+    for i in range(a.start, n):
         x = ids[i * a.seqlen:(i + 1) * a.seqlen].to(lm.device)
         hidden = lm.model(x[None], None, logits="hidden")[:-1]
         targets = x[1:]
@@ -60,7 +61,7 @@ def main():
         print(f"window {i + 1}/{n} nll={per_window[-1]:.4f} running_ppl={math.exp(nll_sum / count):.4f} "
               f"elapsed={time.time() - t0:.0f}s", file=sys.stderr, flush=True)
     ppl = math.exp(nll_sum / count)
-    res = {"dataset": "wikitext-2-raw-v1/test", "seqlen": a.seqlen, "windows": n, "total_windows": total,
+    res = {"dataset": "wikitext-2-raw-v1/test", "seqlen": a.seqlen, "start": a.start, "windows": n, "total_windows": total,
            "tokens_scored": count, "ppl": ppl, "dtype": a.dtype, "device": str(lm.device),
            "factor_storage": a.factor_storage, "per_window_nll": per_window, "seconds": time.time() - t0}
     print(json.dumps({k: v for k, v in res.items() if k != "per_window_nll"}))
