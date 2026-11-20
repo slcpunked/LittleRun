@@ -264,3 +264,19 @@ def test_chat_logprobs_and_validation():
         ev = [json.loads(e) for e in sse(s)[:-1]]
     toks = [t["token"] for e in ev[1:] for t in e["choices"][0].get("logprobs", {}).get("content", [])]
     assert toks == [e["token"] for e in content]
+
+
+def test_api_key_and_stats():
+    eng = Engine(max_queue=2, max_tokens_limit=48)
+    eng.set_runner(FakeRunner())
+    c = TestClient(create_app(eng, "fake", api_key="s3cret"))
+    assert c.get("/health").status_code == 200  # probes stay open
+    body = {"model": "fake", "prompt": "w", "max_tokens": 10, "temperature": 0}
+    r = c.post("/v1/completions", json=body)
+    assert r.status_code == 401 and r.json()["error"]["code"] == "invalid_api_key"
+    assert c.post("/v1/completions", json=body, headers={"Authorization": "Bearer nope"}).status_code == 401
+    ok = {"Authorization": "Bearer s3cret"}
+    assert c.post("/v1/completions", json=body, headers=ok).status_code == 200
+    st = c.get("/v1/runtime/stats", headers=ok).json()
+    assert st["completed"] == 1 and st["completion_tokens"] == 4 and st["prompt_tokens"] == 1
+    assert st["state"] == "ready" and st["queue_depth"] == 0

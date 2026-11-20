@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import logging
 import platform
 import resource
@@ -176,7 +177,10 @@ def cmd_serve(a):
     eng.load_async(lambda: ModelRunner(_load(a)))
     if a.host not in ("127.0.0.1", "localhost", "::1"):
         print(f"WARNING: binding to {a.host} exposes the API beyond localhost", file=sys.stderr)
-    uvicorn.run(create_app(eng, model_id), host=a.host, port=a.port, log_level="info")
+    api_key = os.environ.get(a.api_key_env) if a.api_key_env else None
+    if a.api_key_env and not api_key:
+        raise SystemExit(f"environment variable {a.api_key_env} is empty")
+    uvicorn.run(create_app(eng, model_id, api_key=api_key), host=a.host, port=a.port, log_level="info")
 
 
 def _peak_host_bytes() -> int:
@@ -302,6 +306,7 @@ def main(argv=None):
     s.add_argument("--port", type=int, default=8000)
     s.add_argument("--max-queue", type=int, default=4)
     s.add_argument("--max-tokens-limit", type=int, default=2048)
+    s.add_argument("--api-key-env", help="require 'Authorization: Bearer <key>' with the key read from this env var")
     s.set_defaults(fn=cmd_serve)
 
     bn = sub.add_parser("bench", help="measure load, prefill and decode speed")

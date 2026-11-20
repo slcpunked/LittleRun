@@ -13,7 +13,7 @@
 
 ## ADR-0002: Unpack factors at load; no packed kernel in v0.1
 
-- Status: accepted
+- Status: superseded on CPU by ADR-0006; still applies on GPU
 - Context: Architecture §8 says profile first; custom CUDA is NO-GO without evidence.
   No GPU was available while building v0.1.
 - Decision: Decode signs to int8 (default) or compute dtype at load.
@@ -41,3 +41,23 @@
 - Status: accepted
 - Decision: Match the pinned chat template default (`enable_thinking` true).
   Clients can send `chat_template_kwargs: {"enable_thinking": false}` (vLLM-compatible).
+
+## ADR-0006: Packed 1-bit CPU kernel as a compiled extension
+
+- Status: accepted (2026-11-20, v0.2)
+- Context: Profiling showed CPU decode was memory-bound on unpacked int8 factors
+  (3.7 GB read per token). Architecture §8 requires profiling before a kernel; this is that evidence.
+- Decision: A small C++ extension (`littlerun/kernels/signed_gemm.cpp`), built on first use with
+  `torch.utils.cpp_extension`. Masked-add GEMV over packed sign words for ≤16 rows. Byte-LUT
+  unpack plus GEMM for larger inputs. The reference fallback stays; a failed build falls back to `int8mm`.
+- Evidence: 8B decode 2.3 → 9–9.7 tok/s; peak RSS 9.4 → 2.2 GiB; WikiText-2 windows identical
+  to 5e-5 NLL; 24/24 greedy tokens equal across modes (`docs/VALIDATION.md` §7).
+- Consequence: Needs a C++ compiler at first run. GCC/Clang only (GNU builtins); MSVC builds fall back.
+
+## ADR-0007: Rejected optimisations (measured)
+
+- Fusing each linear's scales and both paths into one C++ call: no measurable gain
+  (99.0 vs 97.8 ms/token minimum over 4 interleaved rounds). Reverted.
+- int8 per-row lm_head: 21.2 → 17.9 ms per token, but lossy. Not worth an extra numerics mode.
+- `aten._weight_int8pack_mm` with K not a multiple of 32: wrong results and segfaults in
+  torch 2.15. The `int8mm` mode pads K to 32.

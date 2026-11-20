@@ -1,4 +1,4 @@
-# LittleRun architecture (v0.1 reference prototype)
+# LittleRun architecture (v0.2)
 
 Implements Phase 0–2 of "LittleBit-2 Multi-Model Inference Runtime, Architecture v2.1".
 Phases 3–5 (CUDA kernels, Windows packaging, more models) are not started.
@@ -67,15 +67,30 @@ These signatures stay provisional until a second adapter or backend exists (arch
 
 ## Factor storage
 
-| Mode | Resident form | Trade-off |
-|---|---|---|
-| `int8` (default) | ±1 as int8 | Half the memory of bf16. Casts on every call. |
-| `compute` | ±1 in compute dtype | Fastest reference path. Most memory. |
+| Mode | Resident form | Small inputs (≤16 rows: decode) | Large inputs (prefill) | Devices |
+|---|---|---|---|---|
+| `packed` | 1-bit int32 words, as stored | Compiled packed-sign kernel (`littlerun/kernels`) | Unpack to bf16 scratch (byte LUT), GEMM | CPU |
+| `int8mm` | ±1 int8, K zero-padded to 32 | `aten._weight_int8pack_mm` with fused scales | Cast to compute dtype, GEMM | CPU, bf16/fp16 |
+| `int8` | ±1 int8 | Cast per call, GEMM | Same | Any |
+| `compute` | ±1 in compute dtype | GEMM | GEMM | Any |
 
-Neither mode keeps the 1-bit packed form resident.
-For the pinned 8B checkpoint the packed factors are 445 MiB, int8 is 3.7 GB, bf16 is 7.4 GB.
-Realising the 1-bit memory advantage needs a packed kernel (Phase 3).
-Full dense weights are never built.
+`auto` (default) picks `packed` on CPU when the kernel builds, otherwise `int8mm`.
+On GPU it picks `compute` if the memory estimate fits, else `int8`.
+
+Packed kernel: `out = rowsum(x) − 2·Σ_{bit=1} x`. AVX-512 uses one masked add per 16 activations.
+The M=1 path keeps 8 independent accumulators to hide add latency. A scalar path covers CPUs
+without AVX-512. Accumulation is fp32, so packed decode is slightly more precise than the
+bf16 reference, not bit-identical.
+
+For the pinned 8B checkpoint: packed factors 445 MiB, int8 3.7 GB, bf16 7.4 GB.
+Full dense weights are never built. There is no GPU packed kernel yet (Phase 3).
+
+## Single-stream KV reuse
+
+The runner remembers which tokens' K/V are in the cache. A new request that shares a prompt
+prefix with them prefills only the suffix (at least one token always runs).
+A failed prefill or decode invalidates the record before touching the cache.
+Usage reports `prompt_tokens_details.cached_tokens`. Prefill runs in 512-token chunks.
 
 ## Serving contract
 

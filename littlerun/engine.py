@@ -189,6 +189,10 @@ class Engine:
         self._q: queue.Queue[RequestHandle] = queue.Queue(maxsize=max_queue)
         self._running: RequestHandle | None = None
         self._stop = threading.Event()
+        self.stats = {"submitted": 0, "rejected_queue_full": 0, "completed": 0, "cancelled": 0, "failed": 0,
+                      "prompt_tokens": 0, "cached_prompt_tokens": 0, "completion_tokens": 0,
+                      "prefill_s": 0.0, "decode_s": 0.0}
+        self._stats_lock = threading.Lock()
         self._worker = threading.Thread(target=self._loop, name="littlerun-worker", daemon=True)
         self._worker.start()
 
@@ -221,6 +225,23 @@ class Engine:
     def shutdown(self):
         self._stop.set()
 
+    def _bump(self, **kw):
+        with self._stats_lock:
+            for k, v in kw.items():
+                self.stats[k] += v
+
+    def snapshot(self) -> dict:
+        with self._stats_lock:
+            st = dict(self.stats)
+        st["queue_depth"] = self.queue_depth()
+        st["max_queue"] = self.max_queue
+        st["state"] = self.state
+        done = st["completion_tokens"] - st["completed"] - st["cancelled"]  # tokens after the first, approx.
+        st["avg_decode_tok_s"] = round(done / st["decode_s"], 3) if st["decode_s"] > 0 and done > 0 else None
+        new_prompt = st["prompt_tokens"] - st["cached_prompt_tokens"]
+        st["avg_prefill_tok_s"] = round(new_prompt / st["prefill_s"], 3) if st["prefill_s"] > 0 else None
+        return st
+
     def queue_depth(self) -> int:
         return self._q.qsize() + (1 if self._running else 0)
 
@@ -241,8 +262,10 @@ class Engine:
         try:
             h.state = State.QUEUED
             self._q.put_nowait(h)
+            self._bump(submitted=1)
         except queue.Full:
             h.state = State.FAILED
+            self._bump(rejected_queue_full=1)
             raise QueueFullError(f"queue full ({self.max_queue} pending)") from None
         return h
 
@@ -263,6 +286,7 @@ class Engine:
             except Exception as e:  # noqa: BLE001 - request fails, engine survives
                 log.exception("request %s failed", h.id)
                 h.state = State.FAILED
+                self._bump(failed=1)
                 h.events.put(Event("error", error=f"{type(e).__name__}: {e}"))
                 _release_device_memory()
             finally:
@@ -341,6 +365,10 @@ class Engine:
         h.metrics.update({"completion_tokens": n, "decode_tok_s": (n - 1) / dt if n > 1 and dt > 0 else None,
                           "total_s": time.perf_counter() - t0})
         h.state = State.CANCELLED if finish == "cancelled" else State.COMPLETED
+        self._bump(cancelled=int(finish == "cancelled"), completed=int(finish != "cancelled"),
+                   prompt_tokens=len(req.prompt_ids), cached_prompt_tokens=h.metrics.get("cached_prompt_tokens", 0),
+                   completion_tokens=n, prefill_s=h.metrics.get("prefill_s", 0.0),
+                   decode_s=max(0.0, time.perf_counter() - (t_first or t0)))
         h.events.put(Event("done", finish_reason=finish, usage=self._usage(h, n),
                            logprobs=(pending_lp or None) if finish != "cancelled" else None))
         log.info("%s %s tokens=%d ttft=%.3fs decode=%s tok/s", h.id, finish, n, h.metrics.get("ttft_s") or -1,

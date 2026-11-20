@@ -129,8 +129,19 @@ def _next_event(h, timeout: float) -> Event | None:
         return None
 
 
-def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) -> FastAPI:
-    app = FastAPI(title="LittleRun", version="0.1.0", docs_url=None, redoc_url=None)
+def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512, api_key: str | None = None) -> FastAPI:
+    import hmac
+
+    app = FastAPI(title="LittleRun", version="0.2.0", docs_url=None, redoc_url=None)
+
+    @app.middleware("http")
+    async def _auth(request: Request, call_next):
+        # Health probes stay open; everything else needs the key when one is configured.
+        if api_key and not request.url.path.startswith("/health"):
+            got = request.headers.get("authorization", "")
+            if not hmac.compare_digest(got.encode(), f"Bearer {api_key}".encode()):
+                return _err(401, "missing or invalid API key", "authentication_error", code="invalid_api_key")
+        return await call_next(request)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_req, exc: RequestValidationError):
@@ -172,6 +183,11 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
         if not engine.ready:
             return JSONResponse(status_code=503, content={"ready": False, "state": engine.state, "error": engine.error})
         return {"ready": True}
+
+    @app.get("/v1/runtime/stats")
+    async def stats():
+        """Local counters only; nothing is sent anywhere."""
+        return engine.snapshot()
 
     @app.get("/v1/models")
     async def models():
