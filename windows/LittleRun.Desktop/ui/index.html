@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,22 +8,55 @@
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
-  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a1 1 0 0 1 1-1h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-  <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.8"/></symbol>
-  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-  <symbol id="i-logo" viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="8" fill="currentColor"/><rect x="8" y="17" width="4" height="7" rx="1.5" fill="var(--logo-ink)"/><rect x="14" y="12" width="4" height="12" rx="1.5" fill="var(--logo-ink)"/><rect x="20" y="8" width="4" height="16" rx="1.5" fill="var(--logo-ink)"/></symbol>
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2.5" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M9.5 4.5v15"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="M13.5 6.5l4 4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-min" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><rect x="5.5" y="8.5" width="10" height="10" rx="1.5"/><path d="M8.5 5.5h8.5a1.5 1.5 0 0 1 1.5 1.5v8.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 18.5V7a2.5 2.5 0 0 1 2.5-2.5h9A2.5 2.5 0 0 1 19 7v6a2.5 2.5 0 0 1-2.5 2.5H9L5 18.5Z"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="9" fill="currentColor" stroke="none"/><rect x="8" y="17" width="4" height="7" rx="1.6" fill="var(--logo-ink)" stroke="none"/><rect x="14" y="12" width="4" height="12" rx="1.6" fill="var(--logo-ink)" stroke="none"/><rect x="20" y="8" width="4" height="16" rx="1.6" fill="var(--logo-ink)" stroke="none"/></symbol>
+  </defs>
 </svg>
 
-<!-- Shown until the host answers. -->
+<!-- ============================== title bar (drag region) ============================== -->
+<header class="titlebar" id="titlebar">
+  <button class="tb-btn" id="toggle-side" title="Toggle sidebar (Ctrl+B)" hidden><svg><use href="#i-side"/></svg></button>
+  <div class="tb-brand"><svg class="logo-sm"><use href="#i-logo"/></svg><span>LittleRun</span></div>
+  <div class="tb-drag"></div>
+  <div class="status" id="status" hidden><span class="dot"></span><span id="status-text">Starting…</span>
+    <button class="link-btn" id="status-restart" hidden>Restart</button></div>
+  <div class="win-controls">
+    <button class="win-btn" id="win-min" title="Minimize" tabindex="-1"><svg><use href="#i-min"/></svg></button>
+    <button class="win-btn" id="win-max" title="Maximize" tabindex="-1"><svg><use href="#i-max"/></svg></button>
+    <button class="win-btn close" id="win-close" title="Close" tabindex="-1"><svg><use href="#i-x"/></svg></button>
+  </div>
+</header>
+
 <div id="boot" class="boot"><svg class="logo-lg"><use href="#i-logo"/></svg></div>
 
 <!-- ============================== setup ============================== -->
@@ -32,8 +65,8 @@
     <header class="setup-head">
       <svg class="logo-md"><use href="#i-logo"/></svg>
       <div>
-        <h1>Set up LittleRun</h1>
-        <p class="muted">Runs LittleBit sub-1-bit models on this PC. Everything stays on your computer.</p>
+        <h1 id="setup-title">Set up LittleRun</h1>
+        <p class="muted" id="setup-sub">Runs LittleBit sub-1-bit models on this PC. Everything stays on your computer.</p>
       </div>
     </header>
 
@@ -104,37 +137,37 @@
 <div id="app" class="app" hidden>
   <aside class="side" id="side">
     <div class="side-top">
-      <button class="icon-btn" id="toggle-side" title="Hide sidebar"><svg><use href="#i-side"/></svg></button>
-      <span class="grow"></span>
-      <button class="icon-btn" id="new-chat" title="New chat (Ctrl+N)"><svg><use href="#i-plus"/></svg></button>
+      <button class="new-chat" id="new-chat" title="New chat (Ctrl+N)"><svg><use href="#i-plus"/></svg>New chat</button>
+      <label class="search"><svg><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="Search chats" spellcheck="false" autocomplete="off"></label>
     </div>
     <nav class="chat-list" id="chat-list"></nav>
     <div class="side-bottom">
       <button class="side-link" id="open-settings"><svg><use href="#i-gear"/></svg>Settings</button>
+      <button class="icon-btn" id="open-shortcuts" title="Keyboard shortcuts (Ctrl+/)"><svg><use href="#i-keyboard"/></svg></button>
     </div>
   </aside>
 
   <section class="main">
-    <header class="top">
-      <button class="icon-btn" id="show-side" title="Show sidebar" hidden><svg><use href="#i-side"/></svg></button>
+    <div class="main-top">
       <div class="seg" role="tablist" aria-label="Mode">
         <button role="tab" data-mode="chat" class="on">Chat</button>
         <button role="tab" data-mode="complete">Complete</button>
       </div>
       <span class="grow"></span>
-      <div class="status" id="status" title=""><span class="dot"></span><span id="status-text">Starting…</span>
-        <button class="btn btn-small" id="status-restart" hidden>Restart</button></div>
-    </header>
+      <button class="icon-btn" id="export-chat" title="Export this chat (Ctrl+S)" hidden><svg><use href="#i-download"/></svg></button>
+    </div>
 
     <!-- Chat mode -->
     <div class="scroll" id="scroll">
       <div class="thread" id="thread"></div>
       <div class="empty" id="empty">
-        <svg class="logo-lg"><use href="#i-logo"/></svg>
+        <div class="avatar avatar-lg" id="empty-avatar"></div>
         <p class="empty-title" id="empty-title">What's on your mind?</p>
         <div class="notice" id="model-notice" hidden></div>
       </div>
     </div>
+    <button class="jump" id="jump" hidden title="Jump to latest"><svg><use href="#i-down"/></svg></button>
 
     <!-- Complete mode -->
     <div class="doc-wrap" id="doc-wrap" hidden>
@@ -145,122 +178,206 @@
     </div>
 
     <footer class="composer-wrap">
+      <div class="edit-banner" id="edit-banner" hidden><svg><use href="#i-pencil"/></svg>Editing a message. Sending replaces it and everything after it.
+        <button class="link-btn" id="edit-cancel">Cancel</button></div>
       <div class="composer" id="composer">
         <textarea id="input" rows="1" placeholder="Send a message" spellcheck="true"></textarea>
         <div class="composer-row">
-          <button class="chip" id="think" title="Let the model reason before it answers (slower)">
-            <svg><use href="#i-bulb"/></svg>Think</button>
-          <span class="model-pill" id="model-pill"></span>
+          <button class="pill" id="char-pill" title="Character for new chats"><span class="avatar avatar-xs" id="pill-avatar"></span>
+            <span id="pill-text"></span><svg class="chev"><use href="#i-chev"/></svg></button>
+          <button class="chip" id="think" title="Let the model reason before it answers (slower)"><svg><use href="#i-bulb"/></svg>Think</button>
           <span class="grow"></span>
-          <span class="muted small" id="composer-hint"></span>
+          <span class="hint" id="composer-hint"></span>
+          <button class="icon-btn mic" id="mic" title="Dictate (Ctrl+D)"><svg><use href="#i-mic"/></svg></button>
           <button class="send" id="send" title="Send (Enter)"><svg><use href="#i-send"/></svg></button>
         </div>
       </div>
       <div class="complete-bar" id="complete-bar" hidden>
-        <span class="muted small" id="complete-stats"></span>
+        <span class="hint" id="complete-stats"></span>
         <span class="grow"></span>
+        <button class="btn" id="doc-read" title="Read aloud"><svg><use href="#i-speaker"/></svg>Read</button>
         <button class="btn" id="doc-clear">Clear</button>
-        <button class="btn btn-primary" id="doc-go">Continue <kbd>Ctrl+Enter</kbd></button>
+        <button class="btn btn-primary" id="doc-go">Continue</button>
       </div>
     </footer>
+    <div class="menu" id="char-menu" hidden></div>
   </section>
 </div>
 
 <!-- ============================== settings ============================== -->
-<dialog id="settings" class="dialog">
-  <form method="dialog" class="dialog-body" id="settings-form">
-    <header class="dialog-head"><h2>Settings</h2>
-      <button class="icon-btn" value="cancel" formnovalidate title="Close"><svg><use href="#i-x"/></svg></button></header>
+<dialog id="settings" class="dialog settings-dialog">
+  <div class="settings-shell">
+    <nav class="settings-nav" id="settings-nav">
+      <div class="settings-nav-title">Settings</div>
+      <button data-tab="general" class="on"><svg><use href="#i-gear"/></svg>General</button>
+      <button data-tab="appearance"><svg><use href="#i-sun"/></svg>Appearance</button>
+      <button data-tab="character"><svg><use href="#i-user"/></svg>Character</button>
+      <button data-tab="gen"><svg><use href="#i-sliders"/></svg>Generation</button>
+      <button data-tab="voice"><svg><use href="#i-speaker"/></svg>Voice</button>
+      <button data-tab="model"><svg><use href="#i-chip"/></svg>Model</button>
+      <button data-tab="api"><svg><use href="#i-plug"/></svg>Local API</button>
+      <button data-tab="about"><svg><use href="#i-info"/></svg>About</button>
+    </nav>
+    <form class="settings-body" id="settings-form" autocomplete="off" tabindex="-1" autofocus>
+      <header class="settings-head"><h2 id="settings-title">General</h2>
+        <span class="saved" id="settings-msg"></span>
+        <button type="button" class="icon-btn" id="settings-close" title="Close (Esc)"><svg><use href="#i-x"/></svg></button></header>
 
-    <div class="tabs" role="tablist">
-      <button type="button" class="on" data-tab="gen">Generation</button>
-      <button type="button" data-tab="character">Character</button>
-      <button type="button" data-tab="model">Model</button>
-      <button type="button" data-tab="api">Local API</button>
-      <button type="button" data-tab="app">App</button>
-    </div>
-
-    <div class="tab" data-tab="gen">
-      <label class="field"><span>System prompt <small>Chat mode</small></span>
-        <textarea name="systemPrompt" rows="3" placeholder="Optional instructions for every chat"></textarea></label>
-      <div class="grid2">
-        <label class="field"><span>Temperature</span><input name="temperature" type="number" min="0" max="2" step="0.05"></label>
-        <label class="field"><span>Max new tokens</span><input name="maxTokens" type="number" min="1" max="2048" step="1"></label>
-        <label class="field"><span>Top P</span><input name="topP" type="number" min="0.01" max="1" step="0.01"></label>
-        <label class="field"><span>Top K <small>0 = off</small></span><input name="topK" type="number" min="0" max="1000" step="1"></label>
-        <label class="field"><span>Repetition penalty</span><input name="repetitionPenalty" type="number" min="0.5" max="2" step="0.05"></label>
-      </div>
-      <label class="check"><input type="checkbox" name="thinking"><span>Think before answering by default (slower)</span></label>
-    </div>
-
-    <div class="tab" data-tab="character" hidden>
-      <p class="muted small">Models that were not trained on chat answer far better when the chat is written as a story:
-        the model plays a character and continues what they say. New chats use the character chosen here.</p>
-      <div class="grid2">
-        <label class="field"><span>Chat style</span>
-          <select name="chatStyle">
-            <option value="auto">Automatic (story for this kind of model)</option>
-            <option value="story">Always story chat</option>
-            <option value="template">Model's own chat format</option>
-          </select></label>
-        <label class="field"><span>Your name <small>used in the story</small></span>
-          <input name="userName" maxlength="40" placeholder="Sam"></label>
-      </div>
-      <div class="choices" id="char-list"></div>
-      <div class="custom-char" id="custom-char" hidden>
-        <div class="grid2">
-          <label class="field"><span>Name</span><input id="cc-name" maxlength="40" placeholder="Robin"></label>
-          <label class="field"><span>Start from</span>
-            <select id="cc-from"><option value="">Keep what is here</option></select></label>
+      <div class="tab" data-tab="general">
+        <div class="group">
+          <label class="row-item"><span class="ri-text"><b>Keep running in the tray</b><small>Closing the window keeps the model loaded.</small></span>
+            <span class="switch"><input type="checkbox" name="closeToTray"><i></i></span></label>
+          <label class="row-item"><span class="ri-text"><b>Start with Windows</b><small>Opens in the tray when you sign in, so the model is ready.</small></span>
+            <span class="switch"><input type="checkbox" name="startWithWindows"><i></i></span></label>
         </div>
-        <label class="field"><span>Who they are <small>first person: name, job, mood today, favorites, how they talk</small></span>
-          <textarea id="cc-self" rows="6" placeholder="My name is Robin. I'm a baker in a small seaside town…"></textarea></label>
-        <label class="field"><span>Scene <small>{user} is replaced by your name</small></span>
-          <textarea id="cc-scene" rows="2"></textarea></label>
-        <label class="field"><span>Example exchanges <small>“Q:” and “A:” lines; three to five work best</small></span>
-          <textarea id="cc-examples" rows="7" spellcheck="false"></textarea></label>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Data folder</b><small id="data-path"></small></span>
+            <span class="row"><button type="button" class="btn" id="open-data">Open</button><button type="button" class="btn" id="open-logs">Logs</button></span></div>
+        </div>
       </div>
-    </div>
 
-    <div class="tab" data-tab="model" hidden>
-      <dl class="facts" id="model-facts"></dl>
-      <label class="field"><span>Context length <small>tokens; the model restarts when changed</small></span>
-        <input name="maxContext" type="number" min="512" max="32768" step="512"></label>
-      <div class="row gap">
-        <button type="button" class="btn" id="restart-model">Restart model</button>
-        <button type="button" class="btn" id="rerun-setup">Run setup again…</button>
+      <div class="tab" data-tab="appearance" hidden>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Theme</b><small>System follows your Windows setting.</small></span>
+            <span class="seg seg-sm" id="theme-seg">
+              <button type="button" data-value="system">System</button><button type="button" data-value="light">Light</button><button type="button" data-value="dark">Dark</button></span></div>
+          <div class="row-item"><span class="ri-text"><b>Text size</b><small id="font-scale-label">100%</small></span>
+            <input type="range" name="fontScale" min="0.85" max="1.3" step="0.05" class="slider"></div>
+        </div>
       </div>
-      <p class="muted small">Run setup again to switch between CPU and GPU or to download the model again.</p>
-    </div>
 
-    <div class="tab" data-tab="api" hidden>
-      <p class="muted small">Other apps on this PC can use the model through an OpenAI-style API while LittleRun runs.</p>
-      <label class="field"><span>Base URL</span>
-        <span class="row"><input id="api-url" readonly><button type="button" class="icon-btn" data-copy="api-url" title="Copy"><svg><use href="#i-copy"/></svg></button></span></label>
-      <label class="field"><span>API key</span>
-        <span class="row"><input id="api-key" readonly><button type="button" class="icon-btn" data-copy="api-key" title="Copy"><svg><use href="#i-copy"/></svg></button>
-          <button type="button" class="btn btn-small" id="new-key">New key</button></span></label>
-      <label class="field"><span>Port <small>0 = any free port; the model restarts when changed</small></span>
-        <input name="port" type="number" min="0" max="65535" step="1"></label>
-      <label class="field"><span>Model id</span><input id="api-model" readonly></label>
-    </div>
-
-    <div class="tab" data-tab="app" hidden>
-      <label class="check"><input type="checkbox" name="closeToTray"><span>Keep running in the tray when the window is closed</span></label>
-      <div class="row gap">
-        <button type="button" class="btn" id="open-data">Open data folder</button>
-        <button type="button" class="btn" id="open-logs">Open logs</button>
+      <div class="tab" data-tab="character" hidden>
+        <p class="tab-intro">This model was not trained on chat, so LittleRun writes the conversation as a story in which a
+          character answers. New chats use the character chosen here; you can also switch from the message box.</p>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Chat style</b></span>
+            <span class="select"><select name="chatStyle">
+              <option value="auto">Automatic (story for this model)</option>
+              <option value="story">Always story chat</option>
+              <option value="template">Model's own chat format</option>
+            </select><svg><use href="#i-chev"/></svg></span></div>
+          <div class="row-item"><span class="ri-text"><b>Your name</b><small>How the story refers to you.</small></span>
+            <input class="input input-sm" name="userName" maxlength="40" placeholder="Sam"></div>
+        </div>
+        <div class="char-grid" id="char-list"></div>
+        <div class="group custom-char" id="custom-char" hidden>
+          <div class="grid2">
+            <label class="field"><span>Name</span><input class="input" id="cc-name" maxlength="40" placeholder="Robin"></label>
+            <label class="field"><span>Start from</span><span class="select"><select id="cc-from"></select><svg><use href="#i-chev"/></svg></span></label>
+          </div>
+          <label class="field"><span>Who they are <small>first person: name, job, mood today, favorites, how they talk</small></span>
+            <textarea class="input" id="cc-self" rows="6" placeholder="My name is Robin. I'm a baker in a small seaside town…"></textarea></label>
+          <label class="field"><span>Scene <small>{user} becomes your name</small></span>
+            <textarea class="input" id="cc-scene" rows="2"></textarea></label>
+          <label class="field"><span>Example exchanges <small>“Q:” and “A:” lines; three to five work best</small></span>
+            <textarea class="input mono" id="cc-examples" rows="7" spellcheck="false"></textarea></label>
+        </div>
       </div>
-      <p class="muted small" id="about"></p>
-    </div>
 
-    <footer class="dialog-foot">
-      <span class="muted small" id="settings-msg"></span>
-      <span class="grow"></span>
-      <button class="btn" value="cancel" formnovalidate>Cancel</button>
-      <button class="btn btn-primary" id="settings-save" value="save">Save</button>
-    </footer>
-  </form>
+      <div class="tab" data-tab="gen" hidden>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Temperature</b><small>Higher is more varied, lower is more predictable.</small></span>
+            <span class="slider-wrap"><input type="range" name="temperature" min="0" max="1.5" step="0.05" class="slider"><output></output></span></div>
+          <div class="row-item"><span class="ri-text"><b>Repetition penalty</b><small>Discourages loops.</small></span>
+            <span class="slider-wrap"><input type="range" name="repetitionPenalty" min="1" max="1.5" step="0.01" class="slider"><output></output></span></div>
+          <div class="row-item"><span class="ri-text"><b>Top P</b></span>
+            <span class="slider-wrap"><input type="range" name="topP" min="0.1" max="1" step="0.05" class="slider"><output></output></span></div>
+          <div class="row-item"><span class="ri-text"><b>Top K</b><small>0 turns it off.</small></span>
+            <input class="input input-sm" name="topK" type="number" min="0" max="1000" step="1"></div>
+          <div class="row-item"><span class="ri-text"><b>Max new tokens</b></span>
+            <input class="input input-sm" name="maxTokens" type="number" min="1" max="2048" step="1"></div>
+        </div>
+        <div class="group">
+          <label class="row-item"><span class="ri-text"><b>Think before answering</b><small>Model's own chat format only; slower.</small></span>
+            <span class="switch"><input type="checkbox" name="thinking"><i></i></span></label>
+          <label class="field field-pad"><span>System prompt <small>model's own chat format only</small></span>
+            <textarea class="input" name="systemPrompt" rows="3" placeholder="Optional instructions for every chat"></textarea></label>
+        </div>
+      </div>
+
+      <div class="tab" data-tab="voice" hidden>
+        <div class="group">
+          <div class="group-title">Read aloud</div>
+          <label class="row-item"><span class="ri-text"><b>Read replies aloud automatically</b></span>
+            <span class="switch"><input type="checkbox" name="autoRead"><i></i></span></label>
+          <div class="row-item"><span class="ri-text"><b>Voice</b><small>Voices installed in Windows.</small></span>
+            <span class="select"><select name="ttsVoice" id="tts-voice"></select><svg><use href="#i-chev"/></svg></span></div>
+          <div class="row-item"><span class="ri-text"><b>Speed</b></span>
+            <span class="slider-wrap"><input type="range" name="ttsRate" min="0.5" max="2" step="0.05" class="slider"><output></output></span></div>
+          <div class="row-item"><span class="ri-text"><b>Try it</b></span>
+            <button type="button" class="btn" id="tts-test"><svg><use href="#i-speaker"/></svg>Play sample</button></div>
+        </div>
+        <div class="group">
+          <div class="group-title">Dictation</div>
+          <div class="row-item"><span class="ri-text"><b>Speech recognition</b><small id="stt-note"></small></span>
+            <span class="select"><select name="sttEngine">
+              <option value="offline">Windows speech recognizer (offline)</option>
+              <option value="voicetyping">Windows Voice Typing (Win+H, online)</option>
+            </select><svg><use href="#i-chev"/></svg></span></div>
+          <div class="row-item" id="stt-lang-row"><span class="ri-text"><b>Language</b></span>
+            <span class="select"><select name="sttLanguage" id="stt-lang"></select><svg><use href="#i-chev"/></svg></span></div>
+          <label class="row-item"><span class="ri-text"><b>Send when dictation stops</b></span>
+            <span class="switch"><input type="checkbox" name="sttAutoSend"><i></i></span></label>
+        </div>
+      </div>
+
+      <div class="tab" data-tab="model" hidden>
+        <div class="group"><dl class="facts" id="model-facts"></dl></div>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Context length</b><small>Tokens the model keeps in view. Changing it restarts the model.</small></span>
+            <input class="input input-sm" name="maxContext" type="number" min="512" max="32768" step="512" data-apply="restart"></div>
+          <div class="row-item"><span class="ri-text"><b>Model</b><small>Restart it, or run setup again to switch CPU/GPU or re-download.</small></span>
+            <span class="row"><button type="button" class="btn" id="restart-model">Restart</button>
+              <button type="button" class="btn" id="rerun-setup">Run setup…</button></span></div>
+        </div>
+      </div>
+
+      <div class="tab" data-tab="api" hidden>
+        <p class="tab-intro">Other apps on this PC can use the model through an OpenAI-style API while LittleRun runs.</p>
+        <div class="group">
+          <div class="row-item"><span class="ri-text"><b>Base URL</b></span>
+            <span class="row"><input class="input input-md mono" id="api-url" readonly><button type="button" class="icon-btn" data-copy="api-url" title="Copy"><svg><use href="#i-copy"/></svg></button></span></div>
+          <div class="row-item"><span class="ri-text"><b>API key</b></span>
+            <span class="row"><input class="input input-md mono" id="api-key" readonly><button type="button" class="icon-btn" data-copy="api-key" title="Copy"><svg><use href="#i-copy"/></svg></button>
+              <button type="button" class="btn btn-small" id="new-key">New</button></span></div>
+          <div class="row-item"><span class="ri-text"><b>Model id</b></span><input class="input input-md mono" id="api-model" readonly></div>
+          <div class="row-item"><span class="ri-text"><b>Port</b><small>0 picks a free port. Changing it restarts the model.</small></span>
+            <input class="input input-sm" name="port" type="number" min="0" max="65535" step="1" data-apply="restart"></div>
+        </div>
+      </div>
+
+      <div class="tab" data-tab="about" hidden>
+        <div class="about">
+          <svg class="logo-lg"><use href="#i-logo"/></svg>
+          <h3>LittleRun <span id="about-version"></span></h3>
+          <p class="muted" id="about"></p>
+          <button type="button" class="btn" id="about-shortcuts"><svg><use href="#i-keyboard"/></svg>Keyboard shortcuts</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ============================== shortcuts ============================== -->
+<dialog id="shortcuts" class="dialog small-dialog">
+  <div class="dialog-pad">
+    <header class="settings-head"><h2>Keyboard shortcuts</h2>
+      <button type="button" class="icon-btn" id="shortcuts-close" title="Close"><svg><use href="#i-x"/></svg></button></header>
+    <dl class="keys">
+      <dt><kbd>Enter</kbd></dt><dd>Send</dd>
+      <dt><kbd>Shift</kbd> <kbd>Enter</kbd></dt><dd>New line</dd>
+      <dt><kbd>↑</kbd></dt><dd>Edit your last message (empty box)</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Stop the reply, reading or dictation</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>N</kbd></dt><dd>New chat</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>Search chats</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>D</kbd></dt><dd>Dictate</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>S</kbd></dt><dd>Export this chat</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>B</kbd></dt><dd>Show or hide the sidebar</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>,</kbd></dt><dd>Settings</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Enter</kbd></dt><dd>Continue the text (Complete)</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>/</kbd></dt><dd>This list</dd>
+    </dl>
+  </div>
 </dialog>
 
 <div class="toasts" id="toasts"></div>

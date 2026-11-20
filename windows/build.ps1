@@ -151,7 +151,22 @@ if ($NoKernel) {
     $script = Join-Path $PSScriptRoot "tools\build_kernel.py"
     # vcvars64.bat looks for vswhere.exe on PATH and complains (harmlessly) when it is not there.
     $vsInstaller = Split-Path $vswhere
-    Invoke-Checked "compiling the kernel" { cmd /c "set `"PATH=%PATH%;$vsInstaller`" && call `"$vcvars`" >nul && `"$Py`" `"$script`" --out `"$kernelDir`" --work `"$work`"" }
+    # Reuse the last kernel when its source and the pinned torch/Python are unchanged: MSVC output differs on every
+    # build (timestamps), and a changed payload makes installed apps reinstall their runtime.
+    $cache = Join-Path $Build "kernel-cache"
+    $kernelKey = (Get-Sha256 (Join-Path $Root "littlerun\kernels\signed_gemm.cpp")) + "|torch $TorchVersion|python $PythonVersion"
+    $cachedKey = Join-Path $cache "key.txt"
+    if ((Test-Path $cachedKey) -and ((Get-Content $cachedKey -Raw).Trim() -eq $kernelKey) -and (Get-ChildItem $cache -Filter "littlerun_signed_gemm*.pyd")) {
+        New-Item -ItemType Directory -Force $kernelDir | Out-Null
+        Copy-Item (Join-Path $cache "littlerun_signed_gemm*.pyd") $kernelDir
+        Write-Host "  kernel source unchanged: reusing the cached build"
+    } else {
+        Invoke-Checked "compiling the kernel" { cmd /c "set `"PATH=%PATH%;$vsInstaller`" && call `"$vcvars`" >nul && `"$Py`" `"$script`" --out `"$kernelDir`" --work `"$work`"" }
+        if (Test-Path $cache) { Remove-Item -Recurse -Force $cache }
+        New-Item -ItemType Directory -Force $cache | Out-Null
+        Copy-Item (Join-Path $kernelDir "littlerun_signed_gemm*.pyd") $cache
+        Set-Content $cachedKey $kernelKey -Encoding ascii
+    }
     # The kernel uses OpenMP (vcomp140.dll), which is not on every PC: ship it next to the kernel.
     $redist = Join-Path (Split-Path (Split-Path (Split-Path $vcvars))) "Redist\MSVC"
     $vcomp = Get-ChildItem $redist -Recurse -Filter vcomp140.dll -ErrorAction SilentlyContinue |
@@ -196,7 +211,11 @@ Push-Location $Root
 try {
     $wheelOut = Join-Path $Build "wheel"
     if (Test-Path $wheelOut) { Remove-Item -Recurse -Force $wheelOut }
-    Invoke-Checked "building the wheel" { & $uv build $Root --wheel --out-dir $wheelOut -q }
+    # Reproducible wheel: file times come from the last commit, so an unchanged backend gives the same payload.
+    $epoch = (& git -C $Root log -1 --format=%ct 2>$null)
+    $env:SOURCE_DATE_EPOCH = if ($epoch) { $epoch.Trim() } else { "1767225600" }
+    try { Invoke-Checked "building the wheel" { & $uv build $Root --wheel --out-dir $wheelOut -q } }
+    finally { Remove-Item Env:SOURCE_DATE_EPOCH -ErrorAction SilentlyContinue }
 } finally { Pop-Location }
 $wheel = Get-ChildItem $wheelOut -Filter "littlerun-$version-*.whl" | Select-Object -First 1
 if (-not $wheel) { Fail "the wheel for version $version was not built" }

@@ -17,24 +17,48 @@ public sealed class MainForm : Form
     private readonly WebView2 _web = new() { Dock = DockStyle.Fill, DefaultBackgroundColor = Color.Transparent };
     private readonly NotifyIcon _tray = new();
     private readonly ToolStripMenuItem _trayStatus = new("Starting…") { Enabled = false };
+    private readonly SpeechInput _speech = new();
     private bool _quitting;
     private bool _webReady;
+    private bool _restoreMaximized;
+
+    /// <summary>Strip above the page (title-bar colour) for resizing from the top edge.</summary>
+    private int TopBand => LogicalToDeviceUnits(5);
 
     public MainForm(AppController app, bool startHidden)
     {
         _app = app;
         Text = "LittleRun";
         Icon = AppIcon();
-        MinimumSize = new Size(720, 480);
-        Size = new Size(1100, 760);
+        // Sizable, but the caption is removed in WndProc (WM_NCCALCSIZE): the page draws the title bar.
+        FormBorderStyle = FormBorderStyle.Sizable;
+        DoubleBuffered = true;
+        MinimumSize = new Size(760, 500);
+        Size = new Size(1120, 780);
         StartPosition = FormStartPosition.CenterScreen;
-        BackColor = Color.FromArgb(0x17, 0x17, 0x17);
+        BackColor = Color.FromArgb(0x15, 0x15, 0x18);
+        Padding = new Padding(0, TopBand, 0, 0);
+        var saved = WindowPlacement.Restore(app.Settings.Window, Screen.AllScreens.Select(s => s.WorkingArea).ToList(),
+                                            MinimumSize);
+        if (saved is { } r)
+        {
+            StartPosition = FormStartPosition.Manual;
+            Bounds = r;
+            _restoreMaximized = app.Settings.Window!.Maximized;
+        }
         Controls.Add(_web);
         if (startHidden)
         {
             WindowState = FormWindowState.Minimized;
             ShowInTaskbar = false;
         }
+        else if (_restoreMaximized)
+        {
+            Shown += (_, _) => WindowState = FormWindowState.Maximized;
+        }
+        _speech.Event += (kind, text) => Post(new { type = "event", name = "stt", data = new { kind, text } });
+        // The installer's "start when I sign in" option writes the same Run key; show its real state.
+        app.Settings.StartWithWindows = StartupRegistration.IsEnabled();
 
         _tray.Icon = Icon;
         _tray.Text = "LittleRun";
@@ -73,8 +97,70 @@ public sealed class MainForm : Form
         ShowInTaskbar = true;
         Show();
         if (WindowState == FormWindowState.Minimized)
-            WindowState = FormWindowState.Normal;
+            WindowState = _restoreMaximized ? FormWindowState.Maximized : FormWindowState.Normal;
         Activate();
+    }
+
+    // ------------------------------------------------------------------ frameless window
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        Frameless.Style(Handle);
+        Frameless.FrameChanged(Handle);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == Frameless.WM_NCCALCSIZE && m.WParam != IntPtr.Zero)
+        {
+            Frameless.CalcSize(Handle, m.LParam, WindowState == FormWindowState.Maximized);
+            m.Result = IntPtr.Zero;
+            return;
+        }
+        base.WndProc(ref m);
+        if (m.Msg == Frameless.WM_NCHITTEST && m.Result == Frameless.HTCLIENT && WindowState == FormWindowState.Normal)
+        {
+            var p = PointToClient(new Point(unchecked((short)(long)m.LParam), unchecked((short)((long)m.LParam >> 16))));
+            m.Result = Frameless.TopHit(p, ClientSize.Width, TopBand, LogicalToDeviceUnits(12));
+        }
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        Padding = WindowState == FormWindowState.Maximized ? Padding.Empty : new Padding(0, TopBand, 0, 0);
+        if (WindowState != FormWindowState.Minimized)
+            _restoreMaximized = WindowState == FormWindowState.Maximized;
+        if (_webReady)
+            Post(new { type = "event", name = "window", data = new { maximized = WindowState == FormWindowState.Maximized } });
+    }
+
+    private void SavePlacement()
+    {
+        var b = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+        if (b.Width <= 0 || b.Height <= 0)
+            return;
+        _app.Settings.Window = new WindowPlacement
+        {
+            X = b.X, Y = b.Y, Width = b.Width, Height = b.Height,
+            Maximized = WindowState == FormWindowState.Maximized || (WindowState == FormWindowState.Minimized && _restoreMaximized),
+        };
+        _app.Settings.Save(_app.Paths);
+    }
+
+    private void ToggleMaximize() =>
+        WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;
+
+    /// <summary>The page tells us its theme so the resize band and the window border match it.</summary>
+    private void ApplyTheme(bool dark, string bg, string border)
+    {
+        try
+        {
+            BackColor = ColorTranslator.FromHtml(bg);
+            Frameless.Theme(Handle, dark, ColorTranslator.FromHtml(border));
+        }
+        catch (Exception e) when (e is ArgumentException or FormatException) { }
     }
 
     private void Quit()
@@ -85,6 +171,8 @@ public sealed class MainForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        SavePlacement();
+        _speech.Stop();
         if (!_quitting && e.CloseReason == CloseReason.UserClosing && _app.Settings.CloseToTray)
         {
             e.Cancel = true;
@@ -108,6 +196,7 @@ public sealed class MainForm : Form
         if (disposing)
         {
             _app.Event -= OnAppEvent;
+            _speech.Dispose();
             _tray.Dispose();
             _web.Dispose();
         }
@@ -139,6 +228,9 @@ public sealed class MainForm : Form
         s.AreBrowserAcceleratorKeysEnabled = s.AreDevToolsEnabled;
         s.IsPasswordAutosaveEnabled = false;
         s.IsGeneralAutofillEnabled = false;
+        // `app-region: drag` in the page becomes the title bar: drag, double-click to maximize, snap.
+        s.IsNonClientRegionSupportEnabled = true;
+        s.IsZoomControlEnabled = false; // text size is a setting instead
         core.AddWebResourceRequestedFilter(Origin + "/*", CoreWebView2WebResourceContext.All);
         core.WebResourceRequested += ServeUi;
         core.NavigationStarting += (_, e) =>
@@ -319,6 +411,53 @@ public sealed class MainForm : Form
             case "window.hide":
                 Hide();
                 return null;
+            case "window.minimize":
+                WindowState = FormWindowState.Minimized;
+                return null;
+            case "window.maximize":
+                ToggleMaximize();
+                return new { maximized = WindowState == FormWindowState.Maximized };
+            case "window.close":
+                BeginInvoke(Close); // honours "keep running in the tray"
+                return null;
+            case "window.theme":
+                ApplyTheme(d?["dark"]?.GetValue<bool>() ?? true, Str(d, "bg") ?? "#1b1b1d", Str(d, "border") ?? "#2e2e33");
+                return null;
+            case "speech.start":
+                if (_app.Settings.SttEngine == "voicetyping")
+                {
+                    SpeechInput.WindowsVoiceTyping();
+                    return new { engine = "voicetyping" };
+                }
+                await Task.Run(() => _speech.Start(_app.Settings.SttLanguage));
+                return new { engine = "offline", listening = _speech.Listening };
+            case "speech.stop":
+                _speech.Stop();
+                return null;
+            case "chat.export":
+            {
+                string? saved = null;
+                using var dlg = new SaveFileDialog
+                {
+                    Title = "Export chat",
+                    Filter = "Markdown (*.md)|*.md|Text (*.txt)|*.txt",
+                    FileName = SafeFileName(Str(d, "name") ?? "chat") + ".md",
+                    InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                };
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    await File.WriteAllTextAsync(dlg.FileName, Str(d, "markdown") ?? "");
+                    saved = dlg.FileName;
+                }
+                return new { saved };
+            }
+            case "open.file":
+            {
+                var f = Str(d, "path");
+                if (f != null && File.Exists(f))
+                    Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{f}\"") { UseShellExecute = true });
+                return null;
+            }
             default:
                 throw new ArgumentException($"unknown request '{type}'");
         }
@@ -360,6 +499,7 @@ public sealed class MainForm : Form
             version = Application.ProductVersion.Split('+')[0],
             payloadError,
             setUp = payload != null && _app.IsSetUp,
+            needsUpdate = payload != null && _app.NeedsRuntimeUpdate,
             settings = _app.Settings,
             system = SystemProbe.Probe(_app.Paths.Root),
             models = payload?.Info.Models,
@@ -367,6 +507,8 @@ public sealed class MainForm : Form
             cudaMinDriver = payload?.Info.CudaMinDriver,
             minGpuMemoryMiB = SystemProbe.MinGpuMemoryMiB,
             presets = StoryChat.Presets,
+            speechLanguages = SpeechInput.Languages(),
+            maximized = WindowState == FormWindowState.Maximized,
             torch = payload?.Info.Torch,
             runtime = RuntimeInstaller.ReadStamp(_app.Paths),
             backend = _app.Backend.Status,
@@ -388,6 +530,14 @@ public sealed class MainForm : Form
                 result = dlg.SelectedPath;
         });
         return result;
+    }
+
+    internal static string SafeFileName(string name)
+    {
+        var bad = Path.GetInvalidFileNameChars();
+        var s = new string(name.Select(c => bad.Contains(c) ? ' ' : c).ToArray()).Trim();
+        if (s.Length > 80) s = s[..80].Trim();
+        return s.Length == 0 ? "chat" : s;
     }
 
     private static string? Str(JsonNode? d, string key) => d?[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;

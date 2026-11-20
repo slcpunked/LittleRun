@@ -44,6 +44,34 @@ public sealed class Settings
 
     public StoryCharacter CustomCharacter { get; set; } = NewCustom();
 
+    /// <summary>"system", "light" or "dark".</summary>
+    public string Theme { get; set; } = "system";
+
+    /// <summary>Text size multiplier for the whole UI.</summary>
+    public double FontScale { get; set; } = 1.0;
+
+    /// <summary>Read new replies aloud as they finish.</summary>
+    public bool AutoRead { get; set; }
+
+    /// <summary>Windows voice name for read-aloud; empty picks one that matches the language.</summary>
+    public string TtsVoice { get; set; } = "";
+
+    public double TtsRate { get; set; } = 1.0;
+
+    /// <summary>"offline" (Windows speech recognizer in the app) or "voicetyping" (Windows Voice Typing, Win+H).</summary>
+    public string SttEngine { get; set; } = "offline";
+
+    /// <summary>Recognizer language, e.g. "en-US".</summary>
+    public string SttLanguage { get; set; } = "en-US";
+
+    /// <summary>Send the message automatically when dictation stops.</summary>
+    public bool SttAutoSend { get; set; }
+
+    public bool StartWithWindows { get; set; }
+
+    /// <summary>Last window position, restored at start.</summary>
+    public WindowPlacement? Window { get; set; }
+
     public static StoryCharacter NewCustom() => new()
     {
         Id = "custom",
@@ -93,6 +121,12 @@ public sealed class Settings
         CustomCharacter.Scene ??= "";
         CustomCharacter.Examples = (CustomCharacter.Examples ?? new())
             .Where(e => e != null && !string.IsNullOrWhiteSpace(e.Q) && !string.IsNullOrWhiteSpace(e.A)).Take(12).ToList();
+        if (Theme is not ("system" or "light" or "dark")) Theme = "system";
+        FontScale = FontScale is >= 0.8 and <= 1.4 ? Math.Round(FontScale, 2) : 1.0;
+        TtsVoice ??= "";
+        TtsRate = TtsRate is >= 0.5 and <= 2.0 ? TtsRate : 1.0;
+        if (SttEngine is not ("offline" or "voicetyping")) SttEngine = "offline";
+        SttLanguage = string.IsNullOrWhiteSpace(SttLanguage) ? "en-US" : SttLanguage.Trim();
         // A custom character without a description cannot carry a story; fall back to the default preset.
         if (Character == "custom" && string.IsNullOrWhiteSpace(CustomCharacter.Self)) Character = "ada";
     }

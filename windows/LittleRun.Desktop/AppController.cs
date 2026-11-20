@@ -64,6 +64,15 @@ public sealed class AppController : IDisposable
         ModelInstaller.MissingFiles(m, Settings.ModelDir).Count == 0 &&
         new RuntimeInstaller(Paths, Payload).IsCurrent(Settings.Device);
 
+    /// <summary>
+    /// The model is installed but this build ships a different backend: setup can update the runtime by itself,
+    /// keeping the device, model folder and license choice.
+    /// </summary>
+    public bool NeedsRuntimeUpdate =>
+        CurrentModel is { } m && Settings.LicenseAccepted && Settings.ModelDir != null && Directory.Exists(Settings.ModelDir) &&
+        ModelInstaller.MissingFiles(m, Settings.ModelDir).Count == 0 &&
+        !new RuntimeInstaller(Paths, Payload).IsCurrent(Settings.Device);
+
     public void StartBackendIfReady()
     {
         if (IsSetUp)
@@ -252,13 +261,23 @@ public sealed class AppController : IDisposable
         next.ModelName = Settings.ModelName;
         next.LicenseAccepted = Settings.LicenseAccepted;
         next.Device = Settings.Device;
+        next.Window = Settings.Window;
+        next.TrayHintShown = Settings.TrayHintShown;
+        if (next.StartWithWindows != Settings.StartWithWindows && Environment.ProcessPath is { } exe)
+            StartupRegistration.Set(next.StartWithWindows, exe);
         var restart = next.MaxContext != Settings.MaxContext || next.Port != Settings.Port || next.ApiKey != Settings.ApiKey;
+        // Only a different story prompt is worth a background warm-up (it costs ~30 s of CPU and delays
+        // generations queued behind it).
+        var storyChanged = next.Character != Settings.Character || next.UserName != Settings.UserName ||
+                           next.ChatStyle != Settings.ChatStyle ||
+                           System.Text.Json.JsonSerializer.Serialize(next.CustomCharacter, JsonFile.Options) !=
+                           System.Text.Json.JsonSerializer.Serialize(Settings.CustomCharacter, JsonFile.Options);
         Settings = next;
         Settings.Save(Paths);
         if (restart && IsSetUp)
             Backend.Start(Settings, CurrentModel!); // warms up again once ready
-        else
-            _ = WarmStoryAsync(); // no-op unless the character or name changed
+        else if (storyChanged)
+            _ = WarmStoryAsync();
         return restart;
     }
 

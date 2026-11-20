@@ -98,6 +98,43 @@ test("example exchanges parse from Q:/A: lines and round-trip", () => {
   assert.deepEqual(LR.parseExamples(LR.formatExamples(list)), list);
 });
 
+test("speakable text drops thinking, code and markdown", () => {
+  const t = LR.speakableText("<think>hmm</think>## Title\n**Bold** and `x` with [a link](https://e.com).\n```js\nlet a\n```\n- item");
+  assert.equal(t, "Title Bold and x with a link. (code) item");
+});
+
+test("chat exports as markdown with speaker names", () => {
+  const md = LR.chatToMarkdown({ title: "Dinner", createdAt: 0, mode: "chat", messages: [
+    { role: "user", content: "What's for dinner?" },
+    { role: "assistant", who: "Ada", content: "<think>x</think>Soup." },
+    { role: "assistant", content: "", error: "failed" },
+  ] }, "Sam");
+  assert.match(md, /^# Dinner\n/);
+  assert.match(md, /\*\*Sam:\*\*\n\nWhat's for dinner\?/);
+  assert.match(md, /\*\*Ada:\*\*\n\nSoup\./);
+  assert.ok(!md.includes("failed"));
+  assert.match(LR.chatToMarkdown({ title: "T", mode: "complete", doc: "Once upon" }), /Once upon\n$/);
+});
+
+test("chat search matches every word in titles and messages", () => {
+  const chats = [
+    { title: "Dinner ideas", messages: [{ content: "pasta tonight" }] },
+    { title: "Books", messages: [{ content: "The Hobbit" }] },
+    { title: "Story", mode: "complete", doc: "The history of Rome" },
+  ];
+  assert.equal(LR.searchChats(chats, "").length, 3);
+  assert.deepEqual(LR.searchChats(chats, "hobbit").map((c) => c.title), ["Books"]);
+  assert.deepEqual(LR.searchChats(chats, "dinner pasta").map((c) => c.title), ["Dinner ideas"]);
+  assert.deepEqual(LR.searchChats(chats, "rome").map((c) => c.title), ["Story"]);
+});
+
+test("dictation joins phrases with spacing and capitals", () => {
+  assert.equal(LR.appendDictation("", "hello there"), "Hello there");
+  assert.equal(LR.appendDictation("Hello there.", "how are you"), "Hello there. How are you");
+  assert.equal(LR.appendDictation("I want", "pizza"), "I want pizza");
+  assert.equal(LR.appendDictation("abc ", "  "), "abc ");
+});
+
 test("stats line", () => {
   assert.equal(LR.statsLine({ completionTokens: 11, seconds: 4, firstTokenSeconds: 2, finishReason: "stop" }),
     "11 tokens · 5.0 tok/s · first token 2.0s");

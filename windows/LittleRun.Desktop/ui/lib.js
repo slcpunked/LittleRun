@@ -204,6 +204,56 @@
     return (list || []).map((e) => `Q: ${e.q}\nA: ${e.a}`).join("\n\n");
   }
 
+  // Plain text to read aloud: no thinking, no code blocks, no markdown symbols.
+  function speakableText(md) {
+    return splitThinking(md).answer
+      .replace(/```[\s\S]*?(```|$)/g, " (code) ")
+      .replace(/`([^`]*)`/g, "$1")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+[.)])\s+/gm, "")
+      .replace(/(\*\*|__|\*|_|~~)(?=\S)([^*_~]+?)\1/g, "$2")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // A chat as a Markdown document for export.
+  function chatToMarkdown(chat, userName) {
+    const when = new Date(chat.createdAt || Date.now());
+    const lines = [`# ${chat.title || "Chat"}`, "", `_${when.toLocaleString()}_`, ""];
+    if (chat.mode === "complete") {
+      lines.push(chat.doc || "");
+    } else {
+      for (const m of chat.messages || []) {
+        if (m.error && !m.content) continue;
+        const who = m.role === "user" ? userName || "You" : m.who || "Assistant";
+        lines.push(`**${who}:**`, "", m.role === "assistant" ? splitThinking(m.content).answer : m.content, "");
+      }
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  }
+
+  // Chats whose title or text contains every word of the query (case-insensitive).
+  function searchChats(chats, query) {
+    const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return chats;
+    return chats.filter((c) => {
+      const hay = [c.title, c.doc, ...(c.messages || []).map((m) => m.content)].join("\n").toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }
+
+  // Merge dictated text into what is already typed, with sensible spacing and a capital at sentence starts.
+  function appendDictation(base, phrase) {
+    const p = String(phrase).trim();
+    if (!p) return base;
+    const b = String(base);
+    const startsSentence = !b.trim() || /[.!?]\s*$/.test(b);
+    const text = startsSentence ? p.charAt(0).toUpperCase() + p.slice(1) : p;
+    return !b ? text : b + (/\s$/.test(b) ? "" : " ") + text;
+  }
+
   return { escapeHtml, renderMarkdown, splitThinking, chatTitle, formatBytes, formatDuration, dateGroup,
-           historyForModel, statsLine, useStory, tidyStory, parseExamples, formatExamples };
+           historyForModel, statsLine, useStory, tidyStory, parseExamples, formatExamples, speakableText,
+           chatToMarkdown, searchChats, appendDictation };
 });
