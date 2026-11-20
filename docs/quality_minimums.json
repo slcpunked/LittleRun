@@ -1,0 +1,7 @@
+{
+  "_status": "PROPOSED by the implementer on 2026-11-20, before any suite results were seen. The human owner must approve or change these (architecture section 10).",
+  "_rationale": "Agent use needs reliable structured output and exact answers. A model below these levels would make tool-calling clients fail often.",
+  "json": 0.9,
+  "arith": 0.8,
+  "follow": 0.6
+}
