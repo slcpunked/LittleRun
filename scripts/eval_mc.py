@@ -32,6 +32,7 @@ def main():
     p.add_argument("--device", default="auto")
     p.add_argument("--factor-storage", default="auto")
     p.add_argument("-o", "--output")
+    p.add_argument("--progress", help="JSONL checkpoint; finished questions are skipped on restart")
     a = p.parse_args()
 
     import pyarrow.parquet as pq
@@ -43,10 +44,22 @@ def main():
                                                 verify_hashes=False))
     tok, model = lm.tokenizer, lm.model
     cache = lm.adapter.create_kv_cache(model, 1024, lm.device)
-    correct = correct_norm = 0
     details = []
+    if a.progress:
+        try:
+            with open(a.progress) as f:
+                details = [json.loads(line) for line in f if line.strip()]
+        except FileNotFoundError:
+            pass
+    done = {d["id"] for d in details}
+    correct = sum(d["pred"] == d["gold"] for d in details)
+    correct_norm = sum(d["pred_norm"] == d["gold"] for d in details)
+    if done:
+        print(f"resuming: {len(done)} questions already scored", file=sys.stderr, flush=True)
     t0 = time.time()
     for qi, row in enumerate(rows):
+        if row["id"] in done:
+            continue
         ctx = f"Question: {row['question']}\nAnswer:"
         ctx_ids = tok.encode(ctx, add_special_tokens=False)
         cache.reset()
@@ -72,10 +85,15 @@ def main():
         correct += pred == gold
         correct_norm += pred_n == gold
         details.append({"id": row["id"], "gold": gold, "pred": pred, "pred_norm": pred_n, "ll": scores})
+        if a.progress:
+            with open(a.progress, "a") as f:
+                f.write(json.dumps(details[-1]) + "\n")
         if (qi + 1) % 100 == 0 or qi + 1 == len(rows):
-            print(f"{qi + 1}/{len(rows)} acc={correct / (qi + 1):.4f} acc_norm={correct_norm / (qi + 1):.4f} "
+            k = len(details)
+            print(f"{qi + 1}/{len(rows)} acc={correct / k:.4f} acc_norm={correct_norm / k:.4f} "
                   f"elapsed={time.time() - t0:.0f}s", file=sys.stderr, flush=True)
-    n = len(rows)
+    n = len(details)
+    assert n == len(rows), (n, len(rows))
     res = {"parquet": a.parquet, "n": n, "acc": correct / n, "acc_norm": correct_norm / n,
            "factor_storage": lm.options.factor_storage, "dtype": str(lm.dtype), "seconds": time.time() - t0,
            "details": details}
