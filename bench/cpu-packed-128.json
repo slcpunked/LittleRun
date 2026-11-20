@@ -11,7 +11,7 @@
   "memory_headroom": 0.9
  },
  "device": "cpu",
- "load_s": 2.7464702129364014,
+ "load_s": 2.6011483669281006,
  "memory_estimate": {
   "factors": 466255872,
   "scales": 11484288,
@@ -20,7 +20,7 @@
   "workspace_est": 71797760,
   "total_est": 3190468736
  },
- "peak_host_rss_bytes": 2345553920,
+ "peak_host_rss_bytes": 2346934272,
  "host": {
   "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
   "python": "3.13.18",
@@ -31,19 +31,19 @@
  "runs": [
   {
    "prefill_tokens": 128,
-   "prefill_s": 0.9400859319999881,
-   "prefill_tok_s": 136.1577656286017,
-   "ttft_s": 0.9400859319999881,
-   "decode_tokens": 31,
-   "decode_tok_s": 8.169049259742824
+   "prefill_s": 1.073503361999883,
+   "prefill_tok_s": 119.23577003200289,
+   "ttft_s": 1.073503361999883,
+   "decode_tokens": 63,
+   "decode_tok_s": 9.000803140378313
   },
   {
    "prefill_tokens": 128,
-   "prefill_s": 1.0789361740000913,
-   "prefill_tok_s": 118.63537722110813,
-   "ttft_s": 1.0789361740000913,
-   "decode_tokens": 31,
-   "decode_tok_s": 8.61116840408482
+   "prefill_s": 1.244453847999921,
+   "prefill_tok_s": 102.85636563036938,
+   "ttft_s": 1.244453847999921,
+   "decode_tokens": 63,
+   "decode_tok_s": 9.6889056447558
   }
  ]
 }

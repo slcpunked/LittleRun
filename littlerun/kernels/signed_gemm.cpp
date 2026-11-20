@@ -41,6 +41,39 @@ void scalar_block(const uint32_t* bits, const float* x, const float* rowsum, flo
   }
 }
 
+// M == 1 (decode): 8 independent accumulators hide the add latency.
+__attribute__((target("avx512f")))
+void avx512_row1(const uint32_t* bits, const float* x, float rowsum, float* out,
+                 int64_t r0, int64_t r1, int64_t W) {
+  for (int64_t r = r0; r < r1; ++r) {
+    const uint32_t* row = bits + r * W;
+    __m512 a0 = _mm512_setzero_ps(), a1 = _mm512_setzero_ps(), a2 = _mm512_setzero_ps(), a3 = _mm512_setzero_ps();
+    __m512 a4 = _mm512_setzero_ps(), a5 = _mm512_setzero_ps(), a6 = _mm512_setzero_ps(), a7 = _mm512_setzero_ps();
+    int64_t w = 0;
+    for (; w + 4 <= W; w += 4) {
+      const uint32_t b0 = row[w], b1 = row[w + 1], b2 = row[w + 2], b3 = row[w + 3];
+      const float* xw = x + w * 32;
+      a0 = _mm512_mask_add_ps(a0, (__mmask16)(b0 & 0xFFFFu), a0, _mm512_loadu_ps(xw));
+      a1 = _mm512_mask_add_ps(a1, (__mmask16)(b0 >> 16), a1, _mm512_loadu_ps(xw + 16));
+      a2 = _mm512_mask_add_ps(a2, (__mmask16)(b1 & 0xFFFFu), a2, _mm512_loadu_ps(xw + 32));
+      a3 = _mm512_mask_add_ps(a3, (__mmask16)(b1 >> 16), a3, _mm512_loadu_ps(xw + 48));
+      a4 = _mm512_mask_add_ps(a4, (__mmask16)(b2 & 0xFFFFu), a4, _mm512_loadu_ps(xw + 64));
+      a5 = _mm512_mask_add_ps(a5, (__mmask16)(b2 >> 16), a5, _mm512_loadu_ps(xw + 80));
+      a6 = _mm512_mask_add_ps(a6, (__mmask16)(b3 & 0xFFFFu), a6, _mm512_loadu_ps(xw + 96));
+      a7 = _mm512_mask_add_ps(a7, (__mmask16)(b3 >> 16), a7, _mm512_loadu_ps(xw + 112));
+    }
+    for (; w < W; ++w) {
+      const uint32_t b = row[w];
+      const float* xw = x + w * 32;
+      a0 = _mm512_mask_add_ps(a0, (__mmask16)(b & 0xFFFFu), a0, _mm512_loadu_ps(xw));
+      a1 = _mm512_mask_add_ps(a1, (__mmask16)(b >> 16), a1, _mm512_loadu_ps(xw + 16));
+    }
+    const __m512 sum = _mm512_add_ps(_mm512_add_ps(_mm512_add_ps(a0, a1), _mm512_add_ps(a2, a3)),
+                                     _mm512_add_ps(_mm512_add_ps(a4, a5), _mm512_add_ps(a6, a7)));
+    out[r] = rowsum - 2.f * _mm512_reduce_add_ps(sum);
+  }
+}
+
 __attribute__((target("avx512f")))
 void avx512_block(const uint32_t* bits, const float* x, const float* rowsum, float* out,
                   int64_t r0, int64_t r1, int64_t M, int64_t W, int64_t R) {
@@ -92,7 +125,8 @@ torch::Tensor signed_matmul(torch::Tensor packed, torch::Tensor x, bool force_sc
   float* op = out.data_ptr<float>();
   const bool vec = has_avx512() && !force_scalar;
   at::parallel_for(0, R, kRowBlock, [&](int64_t r0, int64_t r1) {
-    if (vec) avx512_block(bits, xp, rs, op, r0, r1, M, W, R);
+    if (vec && M == 1) avx512_row1(bits, xp, rs[0], op, r0, r1, W);
+    else if (vec) avx512_block(bits, xp, rs, op, r0, r1, M, W, R);
     else scalar_block(bits, xp, rs, op, r0, r1, M, W, R);
   });
   return out;
