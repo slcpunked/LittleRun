@@ -1,4 +1,4 @@
-# Validation evidence (v0.1, 2026-11-20)
+# Validation evidence (v0.1 and v0.2, 2026-11-20)
 
 Environment: Linux container, Intel Xeon @ 2.10 GHz (4 vCPU, AVX-512 BF16/AMX), 15 GiB RAM, no GPU.
 Python 3.13.18, torch 2.15.0+cpu, transformers 4.57.6.
@@ -71,7 +71,7 @@ Live server smoke test (CPU, compute storage, context 2048):
 
 ## 4. Real checkpoint: speed and memory (CPU only)
 
-`littlerun bench`, greedy, bf16 compute, 4 threads:
+v0.1 numbers (superseded on CPU by §7). `littlerun bench`, greedy, bf16, 4 threads:
 
 | Factor storage | Context alloc | Prompt | Prefill tok/s | Decode tok/s | Load estimate | Peak RSS |
 |---|---:|---:|---:|---:|---:|---:|
@@ -86,13 +86,13 @@ These numbers describe this CPU only. They say nothing about the RTX 5060 Ti.
 | Item | Status | Evidence |
 |---|---|---|
 | Pinned source and checkpoint; complete tensor mapping; license reviewed | Done | §2, `docs/RESEARCH.md` |
-| Reference model loads; numerically comparable layer and model outputs | Done on CPU | §1; §3 (PPL within 0.043% of published) |
-| Quality suite passes predeclared minimums | Not done | No suite or minimums declared yet. Reported ARC-Challenge is below chance. |
+| Reference model loads; numerically comparable layer and model outputs | Done on CPU | §1; §3 (PPL within 0.043% of published); §7 |
+| Quality suite passes predeclared minimums | QUALITY_STATUS | §8 |
 | API, streaming, cancellation, overload, errors pass client tests | Done (in-process and real socket) | §1 |
 | GPU memory and throughput on RTX 5060 Ti | Blocked | No GPU in this environment |
-| Optimized kernels beat baseline | Not started | Phase 3 |
+| Optimized kernels beat baseline | Done on CPU | §7: packed kernel 3.9–4.2× v0.1 decode, no quality change measured |
 | Each additional adapter passes gates | Not applicable | One adapter |
-| Windows/WSL2 packaging verified | Not started | Phase 4 |
+| Windows/WSL2 packaging verified | Not started | Phase 4. Kernel has an MSVC shim that has never been compiled. |
 
 ## 6. Known gaps
 
@@ -100,5 +100,47 @@ These numbers describe this CPU only. They say nothing about the RTX 5060 Ti.
   The session's safety policy blocked importing the downloaded upstream code.
   Run them locally: `LITTLEBIT_REF_PATH=<checkout> pytest -q -m reference`.
 - No GPU numbers. Run `littlerun bench $D --device cuda --factor-storage compute` on the target.
-- Decode on CPU is memory-bandwidth bound: each token reads the unpacked factors plus the
-  1.2 GB lm_head.
+- After v0.2, a CPU decode step is about 100 ms: lm_head GEMV ~21 ms, 36 layers ~66 ms
+  (factor linears ~1.5 ms per layer), rest embedding/RoPE/overhead.
+- Two container restarts interrupted long evaluations. WikiText-2 was stitched from two runs (§3);
+  ARC-Easy now checkpoints per question.
+
+## 7. v0.2 packed kernel and storage modes (CPU)
+
+`littlerun bench`, 128-token prompt, greedy, bf16 compute, 4 threads, same machine as §4.
+Raw files: `bench/cpu-*.json`.
+
+| Factor storage | Prefill tok/s | Decode tok/s | Peak RSS | Load estimate |
+|---|---:|---:|---:|---:|
+| v0.1 `compute` (2,048-token prompt) | 92.0 | 2.30 | 9.43 GiB | 9.61 GiB |
+| v0.1 `int8` | 53–60 | 1.21–1.43 | 5.68 GiB | 5.99 GiB |
+| v0.2 `int8mm` | 89–91 | 4.34–4.60 | 5.68 GiB | 5.99 GiB |
+| v0.2 `packed` (first kernel) | 119–136 | 8.17–8.61 | 2.18 GiB | 2.97 GiB |
+| v0.2 `packed` (8-accumulator M=1 path) | 103–119 | 9.00–9.69 | — | 2.97 GiB |
+
+Peak RSS for `packed` is below the 2.5 GB of dense embeddings because embedding rows are
+memory-mapped and only touched rows become resident. lm_head is fully resident.
+
+Correctness evidence for `packed`:
+- Operator tests vs float64 dense reconstruction: relative error < 1e-5 (fp32), bf16-level in bf16.
+  All SIMD paths (scalar, AVX2, AVX-512) agree; odd widths and padding are covered.
+- Model parity with transformers on the fixture, through both the kernel path (≤16 rows) and
+  the unpack+GEMM path: max abs logit error < 2e-4 in fp32.
+- WikiText-2, first 10 windows on the 8B checkpoint: per-window NLL equals the validated v0.1 run
+  within 4.7e-5 (`bench/wikitext2-ppl-packed-10w.json`).
+- 8B greedy decode, 24 tokens from "The history of the Roman Empire begins": `packed`, `int8mm` and
+  `compute` produce identical tokens. First-step relative logit difference vs `compute`:
+  1.2e-2 (`packed`), 1.9e-2 (`int8mm`). GREEDY_RECHECK
+
+Prefix KV reuse on the 8B checkpoint (two-turn chat, 907-token first prompt):
+second turn reused 903 of 921 prompt tokens; TTFT 8.09 s cold vs 1.75 s warm; identical output.
+
+`int8mm` note: `aten._weight_int8pack_mm` returned wrong values (inf) for K=824 and crashed for
+M ≥ 2 in torch 2.15. With K zero-padded to a multiple of 32, every tested shape matched to ~1.7e-3.
+
+AVX2_RESULT
+
+## 8. Quality suite (agent readiness)
+
+QUALITY_RESULT
+
