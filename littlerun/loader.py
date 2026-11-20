@@ -82,9 +82,7 @@ def estimate_memory(groups, dense_shapes, cfg, adapter, opts: LoadOptions, dtype
         for s in shape:
             n *= s
         dense += n * el
-    from .arch.qwen3 import KVCache  # adapter-specific helper; kept generic via cfg
-
-    kv = KVCache.bytes_for(cfg, opts.max_context, dtype)
+    kv = adapter.kv_cache_bytes(cfg, opts.max_context, dtype)
     # Workspace: largest transient = one factor cast (int8 mode) + MLP activations for a 512-token prefill chunk.
     biggest = max(p.rank * max(g.in_features, g.out_features) for g in groups.values() for p in g.paths)
     workspace = (biggest * el if opts.factor_storage == "int8" else 0) + 512 * cfg.intermediate_size * el * 4

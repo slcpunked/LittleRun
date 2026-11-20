@@ -30,7 +30,7 @@ These are modules in one process, not services.
 
 ## Contracts
 
-Adapter: `validate_config`, `linear_shapes`, `dense_tensors`, `build_model`, `create_kv_cache`,
+Adapter: `validate_config`, `linear_shapes`, `dense_tensors`, `build_model`, `kv_cache_bytes`, `create_kv_cache`,
 `prefill`, `decode`, `load_tokenizer`, `apply_chat_template`, `stop_token_ids`.
 
 Codec: `inspect`, `validate_tensors`, `load_factors`, `operation_spec`.

@@ -248,6 +248,9 @@ class Qwen3Adapter:
         head = embed if cfg.tie_word_embeddings else dense["lm_head.weight"].to(dtype)
         return Qwen3Model(cfg, embed, layers, RMSNorm(dense["model.norm.weight"].to(dtype), eps), head, dtype)
 
+    def kv_cache_bytes(self, cfg: Qwen3Config, max_ctx: int, dtype) -> int:
+        return KVCache.bytes_for(cfg, max_ctx, dtype)
+
     def create_kv_cache(self, model: Qwen3Model, max_ctx: int, device) -> KVCache:
         return KVCache(model.cfg, max_ctx, model.dtype, device)
 
