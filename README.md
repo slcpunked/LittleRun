@@ -1,10 +1,12 @@
 # LittleRun
 
 Reference inference runtime for LittleBit / LittleBit-2 sub-1-bit factorized LLM checkpoints.
-It implements the v0.1 scope of "LittleBit-2 Multi-Model Inference Runtime, Architecture v2.1":
-one process, one model, one decode stream, a PyTorch reference backend, and an OpenAI-style API.
+It implements the v0.1 scope of "LittleBit-2 Multi-Model Inference Runtime, Architecture v2.1"
+(one process, one model, one decode stream, OpenAI-style API), plus a v0.2 packed 1-bit CPU kernel.
 
-Status: Phases 0–2 built and tested on CPU. WikiText-2 PPL reproduces the published value (24.486 vs 24.475).
+Status (v0.2): Phases 0–2 done on CPU; Phase 3 started for CPU only.
+WikiText-2 PPL reproduces the published value (24.486 vs 24.475).
+On a 4-core Xeon, the 8B checkpoint decodes at 9–9.7 tok/s in 2.2 GiB peak RSS.
 No GPU measurement yet.
 See `docs/VALIDATION.md` for evidence and the acceptance checklist.
 
@@ -22,6 +24,14 @@ pip install -e ".[test]"
 Python ≥ 3.10. Tested with Python 3.13, torch 2.15 (CPU), transformers 4.57.6.
 
 ## Get the pinned checkpoint
+
+```bash
+littlerun fetch littlebit-qwen3-8b-0.55bpw models/littlebit-qwen3-8b-0.55bpw   # pinned revision, sha256-checked,
+D=models/littlebit-qwen3-8b-0.55bpw                                           # installs the reviewed manifest
+littlerun doctor $D                                                           # environment + validation
+```
+
+Manual equivalent:
 
 ```bash
 REV=6b2c47aa9707e624e2e737d16d64a66be8090ae9
@@ -51,12 +61,26 @@ littlerun generate $D --chat --prompt "What is 2+2?" --max-tokens 64
 # 4. Serve on 127.0.0.1:8000
 littlerun serve $D --model-id littlebit-qwen3-8b --max-context 4096
 
-# 5. Benchmark
+# 5. Interactive multi-turn chat (/reset, /exit)
+littlerun chat $D --system "You are concise."
+
+# 6. Benchmark
 littlerun bench $D --prompt-tokens 512 --gen-tokens 64 -o bench.json
 ```
 
 Load options: `--device auto|cpu|cuda`, `--dtype bf16|fp16|fp32`,
-`--factor-storage int8|compute`, `--max-context N`, `--no-verify-hashes`.
+`--factor-storage auto|packed|int8mm|int8|compute`, `--max-context N`, `--no-verify-hashes`.
+
+| `--factor-storage` | Resident factors (8B) | Where | Notes |
+|---|---:|---|---|
+| `auto` (default) | — | — | CPU: `packed`, else `int8mm`. GPU: `compute` if it fits, else `int8` |
+| `packed` | 0.45 GB | CPU | Compiled kernel, built on first use (needs g++/clang) |
+| `int8mm` | 3.7 GB | CPU, bf16/fp16 | PyTorch int8 weight-only kernel |
+| `int8` | 3.7 GB | any | Casts per call; slow |
+| `compute` | 7.4 GB (bf16) | any | Fastest option on GPU today |
+
+Generation options (`generate`, `chat`): `--temperature`, `--top-p`, `--top-k`, `--seed`,
+`--presence-penalty`, `--frequency-penalty`, `--repetition-penalty`.
 
 ## API
 
@@ -64,9 +88,16 @@ Load options: `--device auto|cpu|cuda`, `--dtype bf16|fp16|fp32`,
 |---|---|
 | `GET /health` | `live`, `ready`, `state` (`loading`/`ready`/`failed`), queue depth |
 | `GET /health/live`, `GET /health/ready` | Ready returns 503 while loading or failed |
+| `GET /v1/runtime/stats` | Local counters: requests, tokens, reused prompt tokens, average prefill/decode speed |
 | `GET /v1/models` | Model id, backend, device, dtype, context, capabilities, source revision |
-| `POST /v1/completions` | One prompt; `max_tokens`, `temperature`, `top_p`, `top_k`, `stop`, `seed`, `stream` |
-| `POST /v1/chat/completions` | Roles `system`/`user`/`assistant`; pinned chat template; `chat_template_kwargs.enable_thinking` |
+| `POST /v1/completions` | One prompt; `max_tokens`, `temperature`, `top_p`, `top_k`, `stop`, `seed`, `stream`, penalties, `logprobs` (0–5) |
+| `POST /v1/chat/completions` | Roles `system`/`user`/`assistant`; pinned chat template; `chat_template_kwargs.enable_thinking`; `logprobs`, `top_logprobs` (0–20) |
+
+Penalties: `presence_penalty` and `frequency_penalty` (OpenAI semantics, generated tokens) and
+`repetition_penalty` (HF semantics, prompt + generated). Logprobs are taken from the model
+distribution before penalties and temperature.
+Consecutive requests that share a prompt prefix reuse its KV cache; `usage.prompt_tokens_details.cached_tokens`
+reports how many tokens were reused.
 
 ```bash
 curl -N localhost:8000/v1/chat/completions -H 'content-type: application/json' -d '{
@@ -75,9 +106,12 @@ curl -N localhost:8000/v1/chat/completions -H 'content-type: application/json' -
   "chat_template_kwargs": {"enable_thinking": false}}'
 ```
 
-Rejected with 400: unknown fields, `n≠1`, penalties, `logprobs`, `echo`, `suffix`, `tools`,
+Authentication: `littlerun serve ... --api-key-env LITTLERUN_API_KEY` requires
+`Authorization: Bearer <key>` on every route except `/health*`. Use it whenever `--host` is not localhost.
+
+Rejected with 400: unknown fields, `n≠1`, `echo`, `suffix`, `tools`,
 non-text `response_format`, `role: "tool"`.
-Status codes: 400 invalid, 404 unknown model, 429 queue full, 503 not ready, 500 internal.
+Status codes: 400 invalid, 401 bad API key, 404 unknown model, 429 queue full, 503 not ready, 500 internal.
 Streams end with a `finish_reason` chunk and `data: [DONE]`.
 A client disconnect cancels the request and frees the decode stream.
 `usage.completion_tokens` counts every sampled token, including a final stop token.
@@ -88,20 +122,32 @@ A client disconnect cancels the request and frees the decode stream.
 pytest -q                                       # self-contained (fixtures generated on the fly)
 LITTLEBIT_REF_PATH=/path/to/SamsungLabs/LittleBit pytest -q -m reference   # comparisons with Samsung code
 python scripts/eval_ppl.py $D --parquet wikitext-2-raw-v1-test.parquet     # WikiText-2 PPL
+python scripts/eval_mc.py $D --parquet ARC-Easy/test-00000-of-00001.parquet # ARC-Easy acc / acc_norm
+python scripts/quality_suite.py $D -o quality.json                              # agent quality suite vs docs/quality_minimums.json
 ```
 
 ## Limitations
 
-- No packed kernel. Factors are unpacked to int8 or bf16 at load (see `ARCHITECTURE.md`).
+- The packed kernel is CPU-only. On GPU, factors are unpacked to bf16 or int8 at load.
 - One architecture (Qwen3, no rope scaling, no sliding window) and one codec.
-- No tool calling, batching, prefix cache, speculative decoding or multi-GPU.
-- The pinned checkpoint's reported quality is low (ARC-Challenge below chance).
+- No tool calling, batching, speculative decoding or multi-GPU. Prefix reuse covers one stream only.
+- The pinned checkpoint's quality is low. LittleRun reproduces its published WikiText-2 PPL (24.49 vs 24.48)
+  and ARC-Easy (acc 0.446 vs 0.444). It scores 0/25 on the agent quality suite (JSON, arithmetic,
+  instruction following). Plain completion is coherent; chat is not. See `docs/VALIDATION.md` §3 and §8.
+- The packed kernel's AVX2 path is 2.5–4.5× slower than its AVX-512 path; expect slower CPU decode without AVX-512.
 - Windows/WSL2 packaging is not done.
 
 ## Licensing
 
+LittleRun is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+You may use, modify and share it for any noncommercial purpose (personal use, research,
+education, hobby projects, and use by charities and public institutions). Commercial use
+is not permitted. See [NOTICE](NOTICE) for attribution.
+
 LittleRun's code was written for this repository after reading the upstream reference.
 No upstream source is copied; it reads the LittleBit checkpoint format. This is not a formal
-clean-room process. Choose and add a license file before distributing it.
-Upstream LittleBit code and the checkpoint are CC BY-NC 4.0; the Qwen3 base model is Apache-2.0.
-Commercial use needs separate legal review (architecture §12).
+clean-room process.
+
+Model weights are not part of this repository and keep their own licenses: the pinned
+checkpoint is CC BY-NC 4.0 and its Qwen3 base model is Apache-2.0. Keep downloaded
+checkpoints in `models/`, which git ignores.

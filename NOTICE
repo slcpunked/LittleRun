@@ -1,0 +1,23 @@
+LittleRun
+Copyright (c) 2026 slcpunked
+
+LittleRun is licensed under the PolyForm Noncommercial License 1.0.0 (see LICENSE).
+Commercial use is not permitted under that license.
+
+Attribution
+-----------
+LittleRun is an independent implementation of the LittleBit / LittleBit-2 methods.
+It reads the LittleBit checkpoint format; no upstream source code is included.
+
+- LittleBit (NeurIPS 2025), arXiv:2506.13771
+- LittleBit-2 (ICML 2026), arXiv:2603.00042
+- SamsungLabs/LittleBit reference implementation, https://github.com/SamsungLabs/LittleBit
+  (CC BY-NC 4.0)
+
+Model weights (not included)
+----------------------------
+No model weights are distributed with LittleRun. Checkpoints are downloaded separately
+and keep their own licenses. The checkpoint pinned in README.md,
+LittleBitLLM/littlebit-qwen3-8b-0.55bpw, is a community release (not an official
+Samsung model) licensed CC BY-NC 4.0. Its base model, Qwen/Qwen3-8B, is licensed
+Apache-2.0.
