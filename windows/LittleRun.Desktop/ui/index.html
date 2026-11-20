@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LittleRun</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a1 1 0 0 1 1-1h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="8" fill="currentColor"/><rect x="8" y="17" width="4" height="7" rx="1.5" fill="var(--logo-ink)"/><rect x="14" y="12" width="4" height="12" rx="1.5" fill="var(--logo-ink)"/><rect x="20" y="8" width="4" height="16" rx="1.5" fill="var(--logo-ink)"/></symbol>
+</svg>
+
+<!-- Shown until the host answers. -->
+<div id="boot" class="boot"><svg class="logo-lg"><use href="#i-logo"/></svg></div>
+
+<!-- ============================== setup ============================== -->
+<main id="setup" class="setup" hidden>
+  <div class="setup-card">
+    <header class="setup-head">
+      <svg class="logo-md"><use href="#i-logo"/></svg>
+      <div>
+        <h1>Set up LittleRun</h1>
+        <p class="muted">Runs LittleBit sub-1-bit models on this PC. Everything stays on your computer.</p>
+      </div>
+    </header>
+
+    <section id="setup-form">
+      <h2>Your PC</h2>
+      <div id="sys" class="sys"></div>
+
+      <h2>Run the model on</h2>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="device" value="cpu" checked>
+          <span class="choice-body"><span class="choice-title"><strong>CPU</strong><span class="tag">Recommended</span></span>
+            <span class="muted">Validated path with the fast 1-bit kernel. Installs about 250 MB.</span></span>
+        </label>
+        <label class="choice" id="choice-gpu">
+          <input type="radio" name="device" value="cuda">
+          <span class="choice-body"><span class="choice-title"><strong>NVIDIA GPU</strong><span class="tag tag-warn">Experimental</span></span>
+            <span class="muted" id="gpu-note">Needs an NVIDIA graphics card.</span></span>
+        </label>
+      </div>
+
+      <h2>Model</h2>
+      <div class="model-card" id="model-card"></div>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="source" value="download" checked>
+          <span class="choice-body"><strong>Download it</strong>
+            <span class="muted" id="download-note"></span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="source" value="import">
+          <span class="choice-body"><strong>Use a folder I already have</strong>
+            <span class="muted" id="import-note">The files are checked against the pinned hashes and used in place.</span>
+            <span class="row"><button class="btn btn-small" id="pick-folder" type="button">Choose folder…</button>
+              <span class="path" id="import-path"></span></span></span>
+        </label>
+      </div>
+
+      <label class="check"><input type="checkbox" id="accept">
+        <span>I accept the model license, <a href="#" id="license-link"></a>. LittleRun itself is licensed for noncommercial use.</span></label>
+
+      <div class="setup-actions">
+        <span class="muted small" id="setup-hint"></span>
+        <button class="btn" id="setup-back" type="button" hidden>Back</button>
+        <button class="btn btn-primary" id="install" type="button" disabled>Install</button>
+      </div>
+    </section>
+
+    <section id="setup-progress" hidden>
+      <ol class="steps" id="steps"></ol>
+      <div class="dl" id="dl" hidden>
+        <div class="bar"><div class="bar-fill" id="dl-fill"></div></div>
+        <div class="dl-meta"><span id="dl-bytes"></span><span id="dl-rate"></span></div>
+      </div>
+      <div class="setup-error" id="setup-error" hidden></div>
+      <details class="log"><summary>Details</summary><pre id="setup-log"></pre></details>
+      <div class="setup-actions">
+        <button class="btn" id="open-logs-setup" type="button">Open logs</button>
+        <span class="grow"></span>
+        <button class="btn" id="setup-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="setup-retry" type="button" hidden>Back</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ============================== app ============================== -->
+<div id="app" class="app" hidden>
+  <aside class="side" id="side">
+    <div class="side-top">
+      <button class="icon-btn" id="toggle-side" title="Hide sidebar"><svg><use href="#i-side"/></svg></button>
+      <span class="grow"></span>
+      <button class="icon-btn" id="new-chat" title="New chat (Ctrl+N)"><svg><use href="#i-plus"/></svg></button>
+    </div>
+    <nav class="chat-list" id="chat-list"></nav>
+    <div class="side-bottom">
+      <button class="side-link" id="open-settings"><svg><use href="#i-gear"/></svg>Settings</button>
+    </div>
+  </aside>
+
+  <section class="main">
+    <header class="top">
+      <button class="icon-btn" id="show-side" title="Show sidebar" hidden><svg><use href="#i-side"/></svg></button>
+      <div class="seg" role="tablist" aria-label="Mode">
+        <button role="tab" data-mode="chat" class="on">Chat</button>
+        <button role="tab" data-mode="complete">Complete</button>
+      </div>
+      <span class="grow"></span>
+      <div class="status" id="status" title=""><span class="dot"></span><span id="status-text">Starting…</span>
+        <button class="btn btn-small" id="status-restart" hidden>Restart</button></div>
+    </header>
+
+    <!-- Chat mode -->
+    <div class="scroll" id="scroll">
+      <div class="thread" id="thread"></div>
+      <div class="empty" id="empty">
+        <svg class="logo-lg"><use href="#i-logo"/></svg>
+        <p class="empty-title" id="empty-title">What's on your mind?</p>
+        <div class="notice" id="model-notice" hidden></div>
+      </div>
+    </div>
+
+    <!-- Complete mode -->
+    <div class="doc-wrap" id="doc-wrap" hidden>
+      <div class="doc-scroll">
+        <div class="doc" id="doc" contenteditable="plaintext-only" spellcheck="false"
+             data-placeholder="Write the beginning of a text. LittleRun continues it."></div>
+      </div>
+    </div>
+
+    <footer class="composer-wrap">
+      <div class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Send a message" spellcheck="true"></textarea>
+        <div class="composer-row">
+          <button class="chip" id="think" title="Let the model reason before it answers (slower)">
+            <svg><use href="#i-bulb"/></svg>Think</button>
+          <span class="model-pill" id="model-pill"></span>
+          <span class="grow"></span>
+          <span class="muted small" id="composer-hint"></span>
+          <button class="send" id="send" title="Send (Enter)"><svg><use href="#i-send"/></svg></button>
+        </div>
+      </div>
+      <div class="complete-bar" id="complete-bar" hidden>
+        <span class="muted small" id="complete-stats"></span>
+        <span class="grow"></span>
+        <button class="btn" id="doc-clear">Clear</button>
+        <button class="btn btn-primary" id="doc-go">Continue <kbd>Ctrl+Enter</kbd></button>
+      </div>
+    </footer>
+  </section>
+</div>
+
+<!-- ============================== settings ============================== -->
+<dialog id="settings" class="dialog">
+  <form method="dialog" class="dialog-body" id="settings-form">
+    <header class="dialog-head"><h2>Settings</h2>
+      <button class="icon-btn" value="cancel" formnovalidate title="Close"><svg><use href="#i-x"/></svg></button></header>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="on" data-tab="gen">Generation</button>
+      <button type="button" data-tab="character">Character</button>
+      <button type="button" data-tab="model">Model</button>
+      <button type="button" data-tab="api">Local API</button>
+      <button type="button" data-tab="app">App</button>
+    </div>
+
+    <div class="tab" data-tab="gen">
+      <label class="field"><span>System prompt <small>Chat mode</small></span>
+        <textarea name="systemPrompt" rows="3" placeholder="Optional instructions for every chat"></textarea></label>
+      <div class="grid2">
+        <label class="field"><span>Temperature</span><input name="temperature" type="number" min="0" max="2" step="0.05"></label>
+        <label class="field"><span>Max new tokens</span><input name="maxTokens" type="number" min="1" max="2048" step="1"></label>
+        <label class="field"><span>Top P</span><input name="topP" type="number" min="0.01" max="1" step="0.01"></label>
+        <label class="field"><span>Top K <small>0 = off</small></span><input name="topK" type="number" min="0" max="1000" step="1"></label>
+        <label class="field"><span>Repetition penalty</span><input name="repetitionPenalty" type="number" min="0.5" max="2" step="0.05"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="thinking"><span>Think before answering by default (slower)</span></label>
+    </div>
+
+    <div class="tab" data-tab="character" hidden>
+      <p class="muted small">Models that were not trained on chat answer far better when the chat is written as a story:
+        the model plays a character and continues what they say. New chats use the character chosen here.</p>
+      <div class="grid2">
+        <label class="field"><span>Chat style</span>
+          <select name="chatStyle">
+            <option value="auto">Automatic (story for this kind of model)</option>
+            <option value="story">Always story chat</option>
+            <option value="template">Model's own chat format</option>
+          </select></label>
+        <label class="field"><span>Your name <small>used in the story</small></span>
+          <input name="userName" maxlength="40" placeholder="Sam"></label>
+      </div>
+      <div class="choices" id="char-list"></div>
+      <div class="custom-char" id="custom-char" hidden>
+        <div class="grid2">
+          <label class="field"><span>Name</span><input id="cc-name" maxlength="40" placeholder="Robin"></label>
+          <label class="field"><span>Start from</span>
+            <select id="cc-from"><option value="">Keep what is here</option></select></label>
+        </div>
+        <label class="field"><span>Who they are <small>first person: name, job, mood today, favorites, how they talk</small></span>
+          <textarea id="cc-self" rows="6" placeholder="My name is Robin. I'm a baker in a small seaside town…"></textarea></label>
+        <label class="field"><span>Scene <small>{user} is replaced by your name</small></span>
+          <textarea id="cc-scene" rows="2"></textarea></label>
+        <label class="field"><span>Example exchanges <small>“Q:” and “A:” lines; three to five work best</small></span>
+          <textarea id="cc-examples" rows="7" spellcheck="false"></textarea></label>
+      </div>
+    </div>
+
+    <div class="tab" data-tab="model" hidden>
+      <dl class="facts" id="model-facts"></dl>
+      <label class="field"><span>Context length <small>tokens; the model restarts when changed</small></span>
+        <input name="maxContext" type="number" min="512" max="32768" step="512"></label>
+      <div class="row gap">
+        <button type="button" class="btn" id="restart-model">Restart model</button>
+        <button type="button" class="btn" id="rerun-setup">Run setup again…</button>
+      </div>
+      <p class="muted small">Run setup again to switch between CPU and GPU or to download the model again.</p>
+    </div>
+
+    <div class="tab" data-tab="api" hidden>
+      <p class="muted small">Other apps on this PC can use the model through an OpenAI-style API while LittleRun runs.</p>
+      <label class="field"><span>Base URL</span>
+        <span class="row"><input id="api-url" readonly><button type="button" class="icon-btn" data-copy="api-url" title="Copy"><svg><use href="#i-copy"/></svg></button></span></label>
+      <label class="field"><span>API key</span>
+        <span class="row"><input id="api-key" readonly><button type="button" class="icon-btn" data-copy="api-key" title="Copy"><svg><use href="#i-copy"/></svg></button>
+          <button type="button" class="btn btn-small" id="new-key">New key</button></span></label>
+      <label class="field"><span>Port <small>0 = any free port; the model restarts when changed</small></span>
+        <input name="port" type="number" min="0" max="65535" step="1"></label>
+      <label class="field"><span>Model id</span><input id="api-model" readonly></label>
+    </div>
+
+    <div class="tab" data-tab="app" hidden>
+      <label class="check"><input type="checkbox" name="closeToTray"><span>Keep running in the tray when the window is closed</span></label>
+      <div class="row gap">
+        <button type="button" class="btn" id="open-data">Open data folder</button>
+        <button type="button" class="btn" id="open-logs">Open logs</button>
+      </div>
+      <p class="muted small" id="about"></p>
+    </div>
+
+    <footer class="dialog-foot">
+      <span class="muted small" id="settings-msg"></span>
+      <span class="grow"></span>
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn btn-primary" id="settings-save" value="save">Save</button>
+    </footer>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="lib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "littlerun"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reference inference runtime for LittleBit / LittleBit-2 sub-1-bit factorized LLM checkpoints"
 requires-python = ">=3.10"
+license = {text = "PolyForm-Noncommercial-1.0.0"}
 dependencies = [
   "torch>=2.5",
   "safetensors>=0.4",

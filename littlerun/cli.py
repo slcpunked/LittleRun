@@ -7,7 +7,6 @@ import json
 import os
 import logging
 import platform
-import resource
 import sys
 import time
 from pathlib import Path
@@ -209,7 +208,7 @@ def cmd_doctor(a):
     import torch
 
     from .backends.torch_ref import int8mm_available
-    from .kernels import packed_kernel, packed_kernel_error
+    from .kernels import packed_kernel, packed_kernel_error, packed_kernel_source
 
     info = {"python": platform.python_version(), "platform": platform.platform(), "torch": torch.__version__,
             "cpu_threads": torch.get_num_threads(), "cuda_available": torch.cuda.is_available()}
@@ -225,7 +224,7 @@ def cmd_doctor(a):
         info["host_available_gib"] = f"unknown ({e})"
     info["int8mm_available"] = int8mm_available()
     k = packed_kernel()
-    info["packed_kernel"] = "ok" if k else f"unavailable: {packed_kernel_error()}"
+    info["packed_kernel"] = f"ok ({packed_kernel_source()})" if k else f"unavailable: {packed_kernel_error()}"
     if k:
         info["simd_path"] = "avx512" if k.avx512_available() else ("avx2" if k.avx2_available() else "scalar")
     for key, val in info.items():
@@ -256,8 +255,9 @@ def cmd_serve(a):
 
 
 def _peak_host_bytes() -> int:
-    r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return r if sys.platform == "darwin" else r * 1024
+    from .hostinfo import peak_rss_bytes
+
+    return peak_rss_bytes()
 
 
 def cmd_bench(a):

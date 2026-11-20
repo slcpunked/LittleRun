@@ -64,11 +64,12 @@ def available_memory(device: torch.device) -> int:
     if device.type == "cuda":
         free, _ = torch.cuda.mem_get_info(device)
         return int(free)
-    with open("/proc/meminfo") as f:
-        for line in f:
-            if line.startswith("MemAvailable:"):
-                return int(line.split()[1]) * 1024
-    raise CompatibilityError("cannot determine available host memory")
+    from .hostinfo import host_available_bytes
+
+    try:
+        return host_available_bytes()
+    except (OSError, ValueError) as e:
+        raise CompatibilityError(f"cannot determine available host memory: {e}") from e
 
 
 def estimate_memory(groups, dense_shapes, cfg, adapter, opts: LoadOptions, dtype) -> dict:

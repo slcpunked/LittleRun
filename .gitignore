@@ -7,3 +7,6 @@ dist/
 *.tmp
 bench/*.log
 bench/*.jsonl
+models/
+bin/
+obj/

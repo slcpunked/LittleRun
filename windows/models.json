@@ -1,0 +1,13 @@
+{
+  "_comment": "App-facing details for the pinned checkpoints in littlerun/cli.py PINNED. build.ps1 merges both into payload.json.",
+  "default": "littlebit-qwen3-8b-0.55bpw",
+  "models": {
+    "littlebit-qwen3-8b-0.55bpw": {
+      "displayName": "LittleBit Qwen3 8B · 0.55 bpw",
+      "modelId": "littlebit-qwen3-8b",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "chatTuned": false,
+      "note": "Community checkpoint, not an official Samsung release. It was distilled without chat data: in Chat mode its replies are often incoherent. Complete mode, which continues a text, works well."
+    }
+  }
+}

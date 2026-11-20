@@ -13,6 +13,32 @@ See `docs/VALIDATION.md` for evidence and the acceptance checklist.
 - Technique and checkpoint audit: `docs/RESEARCH.md`
 - Design: `ARCHITECTURE.md`, decisions in `docs/adr/`
 
+## Windows app
+
+`build.bat` builds `dist\LittleRun.exe`: a desktop app with a chat window and a tray icon.
+On first run it installs a private Python, PyTorch (CPU, or CUDA for an NVIDIA GPU) and this backend into
+`%LOCALAPPDATA%\LittleRun`, downloads or imports the pinned checkpoint, and keeps `littlerun serve` running
+for its Chat and Complete views. No admin rights are needed. Details: `windows/README-windows.txt`.
+
+Because the pinned checkpoint was not trained on chat data (its chat-template replies are gibberish), the app's
+Chat uses *story chat* for models marked `chatTuned: false` in `windows/models.json`: the conversation is written
+as a first-person story (a character description, a scene, a few example exchanges, then `Sam asked, "…"` /
+`I said, "`) and generation stops at the closing quote. Presets: Ada (AI assistant), Maya (park ranger), Leo
+(retired teacher), plus a custom character. In tests about half to two thirds of replies made sense in context;
+factual answers stay unreliable. Prompt builder: `windows/LittleRun.Desktop/StoryChat.cs`.
+
+```bat
+build.bat              :: tests, MSVC kernel, payload, LittleRun.exe, zip (+ installer with Inno Setup)
+build.bat -E2E         :: also install the runtime with the built exe, load the model and generate
+build.bat -SkipTests   :: faster; the exe still runs its self-test
+build.bat -NoKernel    :: without Visual Studio C++ Build Tools (slower CPU path)
+```
+
+Build needs the .NET 10 SDK, Visual Studio 2022 Build Tools with the C++ workload (for the packed kernel),
+and Node.js for the UI tests. The build downloads a pinned uv, Python 3.12.16 and PyTorch 2.15.0.
+The app ships the kernel prebuilt (`LITTLERUN_KERNEL_DIR`), so users need no compiler.
+The source is in `windows/`: `LittleRun.Desktop` (WinForms + WebView2 host, UI in `ui/`) and its tests.
+
 ## Install
 
 ```bash
@@ -139,8 +165,15 @@ python scripts/quality_suite.py $D -o quality.json                              
 
 ## Licensing
 
+LittleRun is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+You may use, modify and share it for any noncommercial purpose (personal use, research,
+education, hobby projects, and use by charities and public institutions). Commercial use
+is not permitted. See [NOTICE](NOTICE) for attribution.
+
 LittleRun's code was written for this repository after reading the upstream reference.
 No upstream source is copied; it reads the LittleBit checkpoint format. This is not a formal
-clean-room process. Choose and add a license file before distributing it.
-Upstream LittleBit code and the checkpoint are CC BY-NC 4.0; the Qwen3 base model is Apache-2.0.
-Commercial use needs separate legal review (architecture §12).
+clean-room process.
+
+Model weights are not part of this repository and keep their own licenses: the pinned
+checkpoint is CC BY-NC 4.0 and its Qwen3 base model is Apache-2.0. Keep downloaded
+checkpoints in `models/`, which git ignores.
