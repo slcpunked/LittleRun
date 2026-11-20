@@ -103,6 +103,51 @@ void avx512_block(const uint32_t* bits, const float* x, const float* rowsum, flo
   }
 }
 
+// AVX2 path (CPUs without AVX-512): expand each byte of sign bits to an 8-lane mask.
+__attribute__((target("avx2")))
+static inline __m256 byte_mask(uint32_t byte) {
+  const __m256i sel = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
+  const __m256i m = _mm256_and_si256(_mm256_set1_epi32((int)byte), sel);
+  return _mm256_castsi256_ps(_mm256_cmpeq_epi32(m, sel));
+}
+
+__attribute__((target("avx2")))
+static inline float hsum256(__m256 v) {
+  __m128 lo = _mm256_castps256_ps128(v), hi = _mm256_extractf128_ps(v, 1);
+  lo = _mm_add_ps(lo, hi);
+  lo = _mm_add_ps(lo, _mm_movehl_ps(lo, lo));
+  lo = _mm_add_ss(lo, _mm_shuffle_ps(lo, lo, 1));
+  return _mm_cvtss_f32(lo);
+}
+
+__attribute__((target("avx2")))
+void avx2_block(const uint32_t* bits, const float* x, const float* rowsum, float* out,
+                int64_t r0, int64_t r1, int64_t M, int64_t W, int64_t R) {
+  const int64_t K = W * 32;
+  for (int64_t m = 0; m < M; ++m) {
+    const float* xm = x + m * K;
+    for (int64_t r = r0; r < r1; ++r) {
+      const uint32_t* row = bits + r * W;
+      __m256 a0 = _mm256_setzero_ps(), a1 = _mm256_setzero_ps(), a2 = _mm256_setzero_ps(), a3 = _mm256_setzero_ps();
+      for (int64_t w = 0; w < W; ++w) {
+        const uint32_t b = row[w];
+        const float* xw = xm + w * 32;
+        a0 = _mm256_add_ps(a0, _mm256_and_ps(_mm256_loadu_ps(xw), byte_mask(b & 0xFFu)));
+        a1 = _mm256_add_ps(a1, _mm256_and_ps(_mm256_loadu_ps(xw + 8), byte_mask((b >> 8) & 0xFFu)));
+        a2 = _mm256_add_ps(a2, _mm256_and_ps(_mm256_loadu_ps(xw + 16), byte_mask((b >> 16) & 0xFFu)));
+        a3 = _mm256_add_ps(a3, _mm256_and_ps(_mm256_loadu_ps(xw + 24), byte_mask(b >> 24)));
+      }
+      const float neg = hsum256(_mm256_add_ps(_mm256_add_ps(a0, a1), _mm256_add_ps(a2, a3)));
+      out[m * R + r] = rowsum[m] - 2.f * neg;
+    }
+  }
+}
+
+bool has_avx2() {
+  static const bool v = __builtin_cpu_supports("avx2");
+  return v;
+}
+
 bool has_avx512() {
   static const bool v = __builtin_cpu_supports("avx512f");
   return v;
@@ -110,7 +155,8 @@ bool has_avx512() {
 
 }  // namespace
 
-torch::Tensor signed_matmul(torch::Tensor packed, torch::Tensor x, bool force_scalar) {
+// path: 0 = best available, 1 = scalar, 2 = AVX2, 3 = AVX-512
+torch::Tensor signed_matmul(torch::Tensor packed, torch::Tensor x, int64_t path) {
   TORCH_CHECK(packed.device().is_cpu() && x.device().is_cpu(), "CPU tensors required");
   TORCH_CHECK(packed.scalar_type() == torch::kInt32 && packed.dim() == 2, "packed must be 2-D int32");
   TORCH_CHECK(x.scalar_type() == torch::kFloat32 && x.dim() == 2, "x must be 2-D float32");
@@ -123,10 +169,14 @@ torch::Tensor signed_matmul(torch::Tensor packed, torch::Tensor x, bool force_sc
   const float* xp = x.data_ptr<float>();
   const float* rs = rowsum.data_ptr<float>();
   float* op = out.data_ptr<float>();
-  const bool vec = has_avx512() && !force_scalar;
+  int64_t use = path;
+  if (use == 0) use = has_avx512() ? 3 : (has_avx2() ? 2 : 1);
+  TORCH_CHECK(use != 3 || has_avx512(), "AVX-512 not supported on this CPU");
+  TORCH_CHECK(use != 2 || has_avx2(), "AVX2 not supported on this CPU");
   at::parallel_for(0, R, kRowBlock, [&](int64_t r0, int64_t r1) {
-    if (vec && M == 1) avx512_row1(bits, xp, rs[0], op, r0, r1, W);
-    else if (vec) avx512_block(bits, xp, rs, op, r0, r1, M, W, R);
+    if (use == 3 && M == 1) avx512_row1(bits, xp, rs[0], op, r0, r1, W);
+    else if (use == 3) avx512_block(bits, xp, rs, op, r0, r1, M, W, R);
+    else if (use == 2) avx2_block(bits, xp, rs, op, r0, r1, M, W, R);
     else scalar_block(bits, xp, rs, op, r0, r1, M, W, R);
   });
   return out;
@@ -177,9 +227,11 @@ torch::Tensor unpack_signs(torch::Tensor packed, torch::ScalarType dtype) {
 }
 
 bool avx512_available() { return has_avx512(); }
+bool avx2_available() { return has_avx2(); }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("signed_matmul", &signed_matmul, "packed-sign matmul (fp32 accumulate)");
   m.def("unpack_signs", &unpack_signs, "expand packed signs to dense +-1");
   m.def("avx512_available", &avx512_available);
+  m.def("avx2_available", &avx2_available);
 }

@@ -168,7 +168,7 @@ def test_packed_bf16_matches_compute_mode(rows):
     assert ea < 1.5e-2 and ea <= eb * 3 + 2e-3, (ea, eb)
 
 
-def test_packed_scalar_and_avx_paths_agree():
+def test_packed_scalar_avx2_avx512_paths_agree():
     _kernel_or_skip()
     from littlerun.codecs.littlebit import pack_signs
     from littlerun.kernels import packed_kernel
@@ -178,8 +178,9 @@ def test_packed_scalar_and_avx_paths_agree():
     p = pack_signs(s)
     x = torch.nn.functional.pad(torch.randn(5, 100), (0, 28))
     ref = x[:, :100].double() @ s.double().t()
-    for force_scalar in (False, True):
-        y = k.signed_matmul(p, x, force_scalar).double()
+    paths = [1] + ([2] if k.avx2_available() else []) + ([3] if k.avx512_available() else [])
+    for path in paths:
+        y = k.signed_matmul(p, x, path).double()
         assert ((y - ref).abs().max() / ref.abs().max()).item() < 1e-5
     assert torch.equal(k.unpack_signs(p, torch.float32)[:, :100].to(torch.int8), s)
     assert torch.equal(k.unpack_signs(p, torch.bfloat16)[:, :100].to(torch.int8), s)

@@ -119,7 +119,7 @@ class FactorizedLinear(nn.Module):
         pad = packed.shape[1] * 32 - tf.shape[1]
         if pad:
             tf = torch.nn.functional.pad(tf, (0, pad))
-        return self._kernel.signed_matmul(packed, tf.contiguous(), False).to(t.dtype)
+        return self._kernel.signed_matmul(packed, tf.contiguous(), 0).to(t.dtype)
 
     def _unpacked(self, packed: torch.Tensor, cols: int, dtype) -> torch.Tensor:
         kdt = torch.bfloat16 if dtype == torch.bfloat16 else torch.float32

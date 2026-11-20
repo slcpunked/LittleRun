@@ -227,7 +227,7 @@ def cmd_doctor(a):
     k = packed_kernel()
     info["packed_kernel"] = "ok" if k else f"unavailable: {packed_kernel_error()}"
     if k:
-        info["avx512"] = k.avx512_available()
+        info["simd_path"] = "avx512" if k.avx512_available() else ("avx2" if k.avx2_available() else "scalar")
     for key, val in info.items():
         print(f"{key:20s} {val}")
     if a.checkpoint:
