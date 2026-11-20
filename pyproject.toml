@@ -31,3 +31,6 @@ markers = [
   "reference: needs the SamsungLabs/LittleBit checkout (LITTLEBIT_REF_PATH)",
   "checkpoint: needs the real checkpoint (LITTLERUN_CKPT)",
 ]
+
+[tool.setuptools.package-data]
+littlerun = ["manifests/*.json", "kernels/*.cpp"]

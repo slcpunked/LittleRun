@@ -163,6 +163,78 @@ def cmd_chat(a):
     eng.shutdown()
 
 
+PINNED = {
+    "littlebit-qwen3-8b-0.55bpw": {
+        "repo": "LittleBitLLM/littlebit-qwen3-8b-0.55bpw",
+        "revision": "6b2c47aa9707e624e2e737d16d64a66be8090ae9",
+        "files": ["config.json", "littlebit_config.json", "generation_config.json", "added_tokens.json",
+                  "merges.txt", "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json", "vocab.json",
+                  "model.safetensors"],
+        "sha256": {"model.safetensors": "5b087e4c79c23697355014fdd00b083c91d0c731ddd80a16d6affbe156f17179",
+                   "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"},
+        "license": "cc-by-nc-4.0",
+        "manifest": "littlebit-qwen3-8b-0.55bpw.manifest.json",
+    },
+}
+
+
+def cmd_fetch(a):
+    """Download a pinned checkpoint at an immutable revision and verify sha256."""
+    from huggingface_hub import hf_hub_download
+
+    from .safetensors_io import sha256_file
+
+    spec = PINNED[a.name]
+    out = Path(a.dest)
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"{spec['repo']}@{spec['revision'][:12]} -> {out} (license: {spec['license']})")
+    for f in spec["files"]:
+        hf_hub_download(spec["repo"], f, revision=spec["revision"], local_dir=str(out))
+        want = spec["sha256"].get(f)
+        if want:
+            got = sha256_file(out / f)
+            if got != want:
+                raise SystemExit(f"sha256 mismatch for {f}: {got} != {want}")
+            print(f"  {f}: sha256 ok")
+        else:
+            print(f"  {f}")
+    src = Path(__file__).resolve().parent / "manifests" / spec["manifest"]
+    if src.exists() and not (out / "littlerun.manifest.json").exists():
+        (out / "littlerun.manifest.json").write_text(src.read_text())
+        print("  installed reviewed manifest; run `littlerun validate` next")
+
+
+def cmd_doctor(a):
+    """Print environment facts that decide which backend and storage mode will be used."""
+    import torch
+
+    from .backends.torch_ref import int8mm_available
+    from .kernels import packed_kernel, packed_kernel_error
+
+    info = {"python": platform.python_version(), "platform": platform.platform(), "torch": torch.__version__,
+            "cpu_threads": torch.get_num_threads(), "cuda_available": torch.cuda.is_available()}
+    if torch.cuda.is_available():
+        free, total = torch.cuda.mem_get_info()
+        info.update(gpu=torch.cuda.get_device_name(0), gpu_free_gib=round(free / 2**30, 2),
+                    gpu_total_gib=round(total / 2**30, 2), bf16_supported=torch.cuda.is_bf16_supported())
+    try:
+        from .loader import available_memory
+
+        info["host_available_gib"] = round(available_memory(torch.device("cpu")) / 2**30, 2)
+    except Exception as e:  # noqa: BLE001
+        info["host_available_gib"] = f"unknown ({e})"
+    info["int8mm_available"] = int8mm_available()
+    k = packed_kernel()
+    info["packed_kernel"] = "ok" if k else f"unavailable: {packed_kernel_error()}"
+    if k:
+        info["avx512"] = k.avx512_available()
+    for key, val in info.items():
+        print(f"{key:20s} {val}")
+    if a.checkpoint:
+        a.manifest, a.no_verify_hashes = None, True
+        cmd_validate(a)
+
+
 def cmd_serve(a):
     import uvicorn
 
@@ -264,6 +336,15 @@ def main(argv=None):
     b.add_argument("--no-hash", action="store_true")
     b.add_argument("-o", "--output")
     b.set_defaults(fn=cmd_manifest_build)
+
+    f = sub.add_parser("fetch", help="download a pinned checkpoint and verify hashes")
+    f.add_argument("name", choices=sorted(PINNED))
+    f.add_argument("dest")
+    f.set_defaults(fn=cmd_fetch)
+
+    dr = sub.add_parser("doctor", help="show environment, kernel and memory facts")
+    dr.add_argument("checkpoint", nargs="?")
+    dr.set_defaults(fn=cmd_doctor)
 
     v = sub.add_parser("validate", help="verify checkpoint against manifest and codec contract")
     v.add_argument("checkpoint")

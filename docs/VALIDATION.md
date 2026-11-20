@@ -36,7 +36,7 @@ relative error, not a universal criterion. The two storage modes are bit-identic
 - sha256 of `model.safetensors` and `tokenizer.json` match the Hugging Face LFS records.
 - `littlerun manifest build`: 4,935 tensors, 252 factor groups, residual on every group,
   no unclaimed tensors, all padding bits clean, measured 0.548 bpw. Took 6.3 s.
-- The manifest is committed as `manifests/littlebit-qwen3-8b-0.55bpw.manifest.json`.
+- The manifest is committed as `littlerun/manifests/littlebit-qwen3-8b-0.55bpw.manifest.json`.
 
 ## 3. Real checkpoint: end-to-end numerical check (WikiText-2)
 

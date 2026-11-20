@@ -26,6 +26,14 @@ Python ≥ 3.10. Tested with Python 3.13, torch 2.15 (CPU), transformers 4.57.6.
 ## Get the pinned checkpoint
 
 ```bash
+littlerun fetch littlebit-qwen3-8b-0.55bpw models/littlebit-qwen3-8b-0.55bpw   # pinned revision, sha256-checked,
+D=models/littlebit-qwen3-8b-0.55bpw                                           # installs the reviewed manifest
+littlerun doctor $D                                                           # environment + validation
+```
+
+Manual equivalent:
+
+```bash
 REV=6b2c47aa9707e624e2e737d16d64a66be8090ae9
 D=models/littlebit-qwen3-8b-0.55bpw && mkdir -p $D
 for f in config.json littlebit_config.json generation_config.json added_tokens.json merges.txt \
