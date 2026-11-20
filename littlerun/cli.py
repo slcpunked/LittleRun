@@ -103,6 +103,65 @@ def cmd_generate(a):
             break
 
 
+def run_chat_repl(runner, engine, a, inp=input, out=print):
+    """Multi-turn chat. Commands: /reset clears history, /exit quits. Prefix reuse keeps turns cheap."""
+    from .engine import GenRequest
+    from .sampling import SamplingParams
+
+    sp = SamplingParams(a.temperature, a.top_p, a.top_k, a.seed, a.presence_penalty, a.frequency_penalty,
+                        a.repetition_penalty)
+    history = [{"role": "system", "content": a.system}] if a.system else []
+    while True:
+        try:
+            line = inp("you> ")
+        except EOFError:
+            break
+        if line.strip() in ("/exit", "/quit"):
+            break
+        if line.strip() == "/reset":
+            history = history[:1] if a.system else []
+            out("[history cleared]")
+            continue
+        if not line.strip():
+            continue
+        history.append({"role": "user", "content": line})
+        ids = runner.encode(runner.chat_prompt(history, enable_thinking=a.thinking))
+        if len(ids) + a.max_tokens > runner.max_context:
+            history.pop()
+            out(f"[context full: {len(ids)} prompt tokens; use /reset]")
+            continue
+        h = engine.submit(GenRequest(ids, a.max_tokens, sp))
+        parts = []
+        while True:
+            ev = h.events.get()
+            if ev.kind == "delta":
+                parts.append(ev.text)
+                out(ev.text, end="", flush=True)
+            elif ev.kind == "error":
+                out(f"\n[error: {ev.error}]")
+                history.pop()
+                break
+            else:
+                cached = (ev.usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+                out(f"\n[{ev.finish_reason}; {ev.usage['completion_tokens']} tokens; "
+                    f"{cached}/{ev.usage['prompt_tokens']} prompt tokens reused]")
+                history.append({"role": "assistant", "content": "".join(parts)})
+                break
+    return history
+
+
+def cmd_chat(a):
+    from .engine import Engine, ModelRunner
+
+    lm = _load(a)
+    runner = ModelRunner(lm)
+    eng = Engine(max_tokens_limit=max(a.max_tokens, 1))
+    eng.set_runner(runner)
+    print("[chat ready: /reset clears history, /exit quits]", file=sys.stderr)
+    run_chat_repl(runner, eng, a)
+    eng.shutdown()
+
+
 def cmd_serve(a):
     import uvicorn
 
@@ -222,6 +281,20 @@ def main(argv=None):
     g.add_argument("--frequency-penalty", type=float, default=0.0)
     g.add_argument("--repetition-penalty", type=float, default=1.0)
     g.set_defaults(fn=cmd_generate)
+
+    c = sub.add_parser("chat", help="interactive multi-turn chat in the terminal")
+    _add_load_args(c)
+    c.add_argument("--system", default="")
+    c.add_argument("--thinking", action="store_true")
+    c.add_argument("--max-tokens", type=int, default=256)
+    c.add_argument("--temperature", type=float, default=0.7)
+    c.add_argument("--top-p", type=float, default=0.8)
+    c.add_argument("--top-k", type=int, default=20)
+    c.add_argument("--seed", type=int)
+    c.add_argument("--presence-penalty", type=float, default=0.0)
+    c.add_argument("--frequency-penalty", type=float, default=0.0)
+    c.add_argument("--repetition-penalty", type=float, default=1.0)
+    c.set_defaults(fn=cmd_chat)
 
     s = sub.add_parser("serve", help="run the OpenAI-style HTTP API")
     _add_load_args(s)

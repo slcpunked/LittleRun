@@ -242,3 +242,23 @@ def test_chunked_prefill_matches_single_pass(loaded_fp32):
     b = lm.adapter.prefill(lm.model, ids, c2, chunk=7)
     assert torch.allclose(a, b, atol=1e-5)
     assert torch.allclose(lm.adapter.decode(lm.model, 5, c1), lm.adapter.decode(lm.model, 5, c2), atol=1e-5)
+
+
+def test_chat_repl_multi_turn_reuses_prefix(loaded_fp32):
+    import argparse
+
+    from littlerun.cli import run_chat_repl
+
+    e = _engine(loaded_fp32)
+    a = argparse.Namespace(system="be brief", thinking=False, max_tokens=4, temperature=0.0, top_p=1.0, top_k=0,
+                           seed=None, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.0)
+    lines = iter(["hello world", "the quick brown", "/reset", "fox", "/exit"])
+    printed = []
+    hist = run_chat_repl(e.runner, e, a, inp=lambda _: next(lines), out=lambda *x, **k: printed.append(" ".join(x)))
+    notes = [p for p in printed if p.startswith("\n[")]
+    assert len(notes) == 3
+    second = notes[1]
+    reused = int(second.split(";")[2].strip().split("/")[0])
+    assert reused > 0  # second turn reused the first turn's K/V
+    assert [m["role"] for m in hist] == ["system", "user", "assistant"]  # after /reset
+    e.shutdown()
