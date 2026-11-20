@@ -53,7 +53,11 @@ def test_packed_storage_matches_transformers(tiny_ckpt):
     ids = [5, 17, 42, 99, 3, 250, 7, 8, 120, 64, 11]
     with torch.no_grad():
         want = hf(torch.tensor([ids])).logits[0].float()
-    assert (lm.model(torch.tensor([ids]), None, logits="all") - want).abs().max() < 2e-4  # GEMM path (11 rows)
+    assert (lm.model(torch.tensor([ids]), None, logits="all") - want).abs().max() < 2e-4  # packed kernel (11 rows)
+    long_ids = (ids * 3)[:30]
+    with torch.no_grad():
+        want_long = hf(torch.tensor([long_ids])).logits[0].float()
+    assert (lm.model(torch.tensor([long_ids]), None, logits="all") - want_long).abs().max() < 2e-4  # GEMM path
     cache = lm.adapter.create_kv_cache(lm.model, 64, lm.device)
     lm.adapter.prefill(lm.model, ids[:4], cache)  # packed-kernel path (4 rows)
     for i in range(4, len(ids)):
@@ -96,9 +100,9 @@ def test_fixed_seed_traces_are_reproducible(loaded_fp32):
     r = e.runner
     ids = r.encode("hello world")
     outs = [e.submit(GenRequest(ids, 12, SamplingParams(0.0))).result(30) for _ in range(2)]
-    assert outs[0] == outs[1]
+    assert outs[0][:2] == outs[1][:2]  # usage differs only by prompt_tokens_details (prefix reuse)
     s = [e.submit(GenRequest(ids, 12, SamplingParams(0.9, 0.9, 20, seed=123))).result(30) for _ in range(2)]
-    assert s[0] == s[1]
+    assert s[0][:2] == s[1][:2]
     e.shutdown()
 
 
@@ -206,3 +210,35 @@ def test_auto_storage_resolution(tiny_ckpt):
     assert fp32 == ("packed" if packed_kernel() is not None else "compute")
     bf = load(d, options=LoadOptions(device="cpu", dtype="bf16", max_context=32)).options.factor_storage
     assert bf in ("packed", "int8mm", "compute")
+
+
+def test_prefix_reuse_matches_fresh_prefill(loaded_fp32):
+    """Second request sharing a prefix reuses K/V and yields the same tokens as a cold cache."""
+    e = _engine(loaded_fp32)
+    r = e.runner
+    a = r.encode("hello world the quick brown")
+    b = a + r.encode(" fox jumps over")
+    e.submit(GenRequest(a, 6, SamplingParams(0.0))).result(30)
+    warm = e.submit(GenRequest(b, 8, SamplingParams(0.0)))
+    warm_out = warm.result(30)
+    assert warm.metrics["cached_prompt_tokens"] >= len(a)
+    assert warm_out[2]["prompt_tokens_details"]["cached_tokens"] == warm.metrics["cached_prompt_tokens"]
+    r.prefix_reuse = False
+    cold = e.submit(GenRequest(b, 8, SamplingParams(0.0)))
+    assert cold.result(30)[:2] == warm_out[:2] and cold.metrics["cached_prompt_tokens"] == 0
+    r.prefix_reuse = True
+    # identical prompt: reuse all but the last token
+    same = e.submit(GenRequest(b, 8, SamplingParams(0.0)))
+    assert same.result(30)[:2] == warm_out[:2] and same.metrics["cached_prompt_tokens"] == len(b) - 1
+    e.shutdown()
+
+
+def test_chunked_prefill_matches_single_pass(loaded_fp32):
+    lm = loaded_fp32
+    ids = list(range(3, 40))
+    c1 = lm.adapter.create_kv_cache(lm.model, 64, lm.device)
+    c2 = lm.adapter.create_kv_cache(lm.model, 64, lm.device)
+    a = lm.adapter.prefill(lm.model, ids, c1)
+    b = lm.adapter.prefill(lm.model, ids, c2, chunk=7)
+    assert torch.allclose(a, b, atol=1e-5)
+    assert torch.allclose(lm.adapter.decode(lm.model, 5, c1), lm.adapter.decode(lm.model, 5, c2), atol=1e-5)

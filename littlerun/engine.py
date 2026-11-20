@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from .errors import NotReadyError, QueueFullError, RequestError
-from .sampling import SamplingParams, make_generator, sample
+from .sampling import SamplingParams, apply_penalties, make_generator, sample
 
 log = logging.getLogger("littlerun.engine")
 
@@ -106,6 +106,8 @@ class ModelRunner(Runner):
         self.stop_ids = loaded.adapter.stop_token_ids(loaded.tokenizer, loaded.generation_config)
         self._tok_lock = threading.Lock()
         self._cache = loaded.adapter.create_kv_cache(loaded.model, self.max_context, loaded.device)
+        self._cached_ids: list[int] = []  # tokens whose K/V are valid in the cache, in order
+        self.prefix_reuse = True
 
     def encode(self, text):
         with self._tok_lock:
@@ -120,15 +122,33 @@ class ModelRunner(Runner):
             return self.lm.adapter.apply_chat_template(self.lm.tokenizer, messages, enable_thinking)
 
     def new_session(self):
-        lm, cache = self.lm, self._cache
-        cache.reset()
+        """Single-stream session. Reuses the cached K/V of the longest common prompt prefix."""
+        runner, lm, cache = self, self.lm, self._cache
 
         class _S:
+            reused = 0
+
             def prefill(self, ids):
-                return lm.adapter.prefill(lm.model, ids, cache)
+                keep = 0
+                if runner.prefix_reuse:
+                    prev = runner._cached_ids
+                    lim = min(len(prev), len(ids) - 1)  # always run >= 1 token to get logits
+                    while keep < lim and prev[keep] == ids[keep]:
+                        keep += 1
+                runner._cached_ids = []  # invalid until this prefill succeeds
+                cache.length = keep
+                logits = lm.adapter.prefill(lm.model, ids[keep:], cache)
+                runner._cached_ids = list(ids)
+                self.reused = keep
+                return logits
 
             def decode(self, tok):
-                return lm.adapter.decode(lm.model, tok, cache)
+                cached = runner._cached_ids
+                runner._cached_ids = []
+                logits = lm.adapter.decode(lm.model, tok, cache)
+                cached.append(tok)
+                runner._cached_ids = cached
+                return logits
 
         return _S()
 
@@ -241,7 +261,10 @@ class Engine:
     @staticmethod
     def _usage(h, n):
         p = len(h.req.prompt_ids)
-        return {"prompt_tokens": p, "completion_tokens": n, "total_tokens": p + n}
+        u = {"prompt_tokens": p, "completion_tokens": n, "total_tokens": p + n}
+        if h.metrics.get("cached_prompt_tokens"):
+            u["prompt_tokens_details"] = {"cached_tokens": h.metrics["cached_prompt_tokens"]}
+        return u
 
     def _generate(self, h: RequestHandle):
         r, req = self.runner, h.req
@@ -251,6 +274,7 @@ class Engine:
         t0 = time.perf_counter()
         logits = sess.prefill(req.prompt_ids)
         h.metrics["prefill_s"] = time.perf_counter() - t0
+        h.metrics["cached_prompt_tokens"] = getattr(sess, "reused", 0)
         out: list[int] = []
         emitted = 0  # chars of decoded text already sent
         hold = max((len(s) for s in req.stop), default=1) - 1
@@ -260,6 +284,8 @@ class Engine:
             if h.cancelled:
                 finish = "cancelled"
                 break
+            if req.sampling.penalized:
+                logits = apply_penalties(logits, req.sampling, out, req.prompt_ids)
             tok = sample(logits, req.sampling, gen)
             out.append(tok)
             if t_first is None:

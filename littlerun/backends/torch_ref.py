@@ -15,7 +15,7 @@ from torch import nn
 from ..codecs.littlebit import OPERATION
 
 FACTOR_STORAGE = ("int8", "compute", "int8mm", "packed")
-PACKED_GEMV_MAX_ROWS = 8  # packed kernel beats unpack+GEMM up to about this many rows (measured on CPU)
+PACKED_GEMV_MAX_ROWS = 16  # packed kernel beats unpack+GEMM up to ~16 rows (measured on CPU, 8B factor shapes)
 INT8MM_MAX_ROWS = 16  # fused int8 kernel is only faster for decode-sized inputs (measured on CPU)
 _K_ALIGN = 32  # aten._weight_int8pack_mm returns wrong results / crashes for K % 32 != 0 (measured, torch 2.15)
 

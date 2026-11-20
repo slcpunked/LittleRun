@@ -126,6 +126,8 @@ def test_chat_stream_order_done_and_usage():
     ({"model": "fake", "prompt": "a", "temperature": 3}, 400, "temperature"),
     ({"model": "fake", "prompt": "a", "bogus": 1}, 400, "bogus"),
     ({"model": "fake", "prompt": "a", "n": 2}, 400, "n"),
+    ({"model": "fake", "prompt": "a", "presence_penalty": 3}, 400, "presence_penalty"),
+    ({"model": "fake", "prompt": "a", "repetition_penalty": 0}, 400, "repetition_penalty"),
     ({"model": "fake", "prompt": "a", "logprobs": 2}, 400, "echo"),
     ({"model": "fake", "prompt": "a", "max_tokens": 0}, 400, "max_tokens"),
     ({"model": "fake", "prompt": "a", "max_tokens": 64}, 400, "max_tokens"),
@@ -230,3 +232,4 @@ def test_client_disconnect_cancels_request():
     server.should_exit = True
     t.join(5)
     assert h.state == State.CANCELLED, h.state
+

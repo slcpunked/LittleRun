@@ -144,7 +144,7 @@ def _kernel_or_skip():
 
 
 @pytest.mark.parametrize("m,n,ranks", [(37, 13, [9]), (64, 72, [20, 12]), (96, 40, [33, 31]), (512, 300, [64, 40])])
-@pytest.mark.parametrize("rows", [1, 2, 8, 9, 40])
+@pytest.mark.parametrize("rows", [1, 2, 16, 17, 40])
 def test_packed_matches_dense_fp32(m, n, ranks, rows):
     _kernel_or_skip()
     paths, W = _factors(m, n, ranks, seed=m * n)
@@ -155,7 +155,7 @@ def test_packed_matches_dense_fp32(m, n, ranks, rows):
     assert rel < 1e-5, rel
 
 
-@pytest.mark.parametrize("rows", [1, 9])
+@pytest.mark.parametrize("rows", [1, 17])
 def test_packed_bf16_matches_compute_mode(rows):
     _kernel_or_skip()
     paths, W = _factors(256, 128, [64, 40], seed=11)

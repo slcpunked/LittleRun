@@ -13,6 +13,32 @@ class SamplingParams:
     top_p: float = 1.0
     top_k: int = 0  # 0 = disabled
     seed: int | None = None
+    presence_penalty: float = 0.0  # OpenAI semantics, applied to generated tokens
+    frequency_penalty: float = 0.0  # OpenAI semantics, applied to generated tokens
+    repetition_penalty: float = 1.0  # HF/vLLM semantics, applied to prompt + generated tokens
+
+    @property
+    def penalized(self) -> bool:
+        return bool(self.presence_penalty or self.frequency_penalty or self.repetition_penalty != 1.0)
+
+
+def apply_penalties(logits: torch.Tensor, params: SamplingParams, generated: list[int],
+                    prompt: list[int]) -> torch.Tensor:
+    """Return penalized float32 CPU logits. No-op when no penalty is set."""
+    logits = logits.detach().float().cpu()
+    if not params.penalized:
+        return logits
+    logits = logits.clone()
+    V = logits.numel()
+    if params.repetition_penalty != 1.0:
+        seen = torch.tensor(sorted(set(prompt) | set(generated)), dtype=torch.long)
+        seen = seen[(seen >= 0) & (seen < V)]
+        vals = logits[seen]
+        logits[seen] = torch.where(vals > 0, vals / params.repetition_penalty, vals * params.repetition_penalty)
+    if generated and (params.presence_penalty or params.frequency_penalty):
+        counts = torch.bincount(torch.tensor(generated, dtype=torch.long), minlength=V)[:V].float()
+        logits = logits - params.frequency_penalty * counts - params.presence_penalty * (counts > 0).float()
+    return logits
 
 
 def make_generator(params: SamplingParams) -> torch.Generator:

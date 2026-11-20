@@ -254,9 +254,13 @@ class Qwen3Adapter:
     def create_kv_cache(self, model: Qwen3Model, max_ctx: int, device) -> KVCache:
         return KVCache(model.cfg, max_ctx, model.dtype, device)
 
-    def prefill(self, model: Qwen3Model, ids: list[int], cache: KVCache) -> torch.Tensor:
+    def prefill(self, model: Qwen3Model, ids: list[int], cache: KVCache, chunk: int = 512) -> torch.Tensor:
+        """Append ids to the cache in chunks of `chunk` tokens; return logits after the last token."""
         device = model.lm_head_weight.device
-        return model(torch.tensor([ids], device=device), cache, logits="last")[-1]
+        logits = None
+        for s in range(0, len(ids), chunk):
+            logits = model(torch.tensor([ids[s:s + chunk]], device=device), cache, logits="last")[-1]
+        return logits
 
     def decode(self, model: Qwen3Model, token: int, cache: KVCache) -> torch.Tensor:
         device = model.lm_head_weight.device

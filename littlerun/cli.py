@@ -87,7 +87,9 @@ def cmd_generate(a):
     else:
         prompt = a.prompt
     ids = runner.encode(prompt)
-    h = eng.submit(GenRequest(ids, a.max_tokens, SamplingParams(a.temperature, a.top_p, a.top_k, a.seed)))
+    h = eng.submit(GenRequest(ids, a.max_tokens, SamplingParams(a.temperature, a.top_p, a.top_k, a.seed,
+                                                                 a.presence_penalty, a.frequency_penalty,
+                                                                 a.repetition_penalty)))
     while True:
         ev = h.events.get()
         if ev.kind == "delta":
@@ -216,6 +218,9 @@ def main(argv=None):
     g.add_argument("--top-p", type=float, default=1.0)
     g.add_argument("--top-k", type=int, default=0)
     g.add_argument("--seed", type=int)
+    g.add_argument("--presence-penalty", type=float, default=0.0)
+    g.add_argument("--frequency-penalty", type=float, default=0.0)
+    g.add_argument("--repetition-penalty", type=float, default=1.0)
     g.set_defaults(fn=cmd_generate)
 
     s = sub.add_parser("serve", help="run the OpenAI-style HTTP API")

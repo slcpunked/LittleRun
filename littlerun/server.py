@@ -39,8 +39,9 @@ class _Base(BaseModel):
     seed: int | None = None
     n: int = 1
     user: str | None = None
-    presence_penalty: float = 0.0
-    frequency_penalty: float = 0.0
+    presence_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+    frequency_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+    repetition_penalty: float = Field(default=1.0, gt=0.0, le=2.0)
 
     @field_validator("stop")
     @classmethod
@@ -55,8 +56,6 @@ class _Base(BaseModel):
     def check_unsupported(self):
         if self.n != 1:
             raise RequestError("only n=1 is supported", "n")
-        if self.presence_penalty or self.frequency_penalty:
-            raise RequestError("presence/frequency penalties are not supported", "presence_penalty")
         if self.stream_options and set(self.stream_options) - {"include_usage"}:
             raise RequestError("only stream_options.include_usage is supported", "stream_options")
 
@@ -187,7 +186,9 @@ def create_app(engine: Engine, model_id: str, *, default_max_tokens: int = 512) 
         return None
 
     def _sampling(body: _Base) -> SamplingParams:
-        return SamplingParams(temperature=body.temperature, top_p=body.top_p, top_k=body.top_k, seed=body.seed)
+        return SamplingParams(temperature=body.temperature, top_p=body.top_p, top_k=body.top_k, seed=body.seed,
+                              presence_penalty=body.presence_penalty, frequency_penalty=body.frequency_penalty,
+                              repetition_penalty=body.repetition_penalty)
 
     @app.post("/v1/completions")
     async def completions(body: CompletionRequest, request: Request):
