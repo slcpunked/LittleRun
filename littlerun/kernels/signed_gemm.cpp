@@ -11,10 +11,34 @@
 #include <torch/extension.h>
 #include <ATen/Parallel.h>
 #include <immintrin.h>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #include <cstdint>
 #include <cstring>
 
 namespace {
+
+// ---- portability shim: GCC/Clang builtins vs MSVC intrinsics (MSVC path is untested) ----
+#if defined(_MSC_VER)
+#define LR_TARGET(x)
+static inline int lr_ctz(uint32_t v) { unsigned long i; _BitScanForward(&i, v); return (int)i; }
+static bool lr_cpu_has(int ebx_bit, unsigned long long xcr0_mask) {
+  int r[4];
+  __cpuid(r, 1);
+  if (!(r[2] & (1 << 27))) return false;  // OSXSAVE
+  if ((_xgetbv(0) & xcr0_mask) != xcr0_mask) return false;
+  __cpuidex(r, 7, 0);
+  return (r[1] >> ebx_bit) & 1;
+}
+static bool lr_has_avx2() { return lr_cpu_has(5, 0x6); }
+static bool lr_has_avx512f() { return lr_cpu_has(16, 0xE6); }
+#else
+#define LR_TARGET(x) __attribute__((target(x)))
+static inline int lr_ctz(uint32_t v) { return __builtin_ctz(v); }
+static bool lr_has_avx2() { return __builtin_cpu_supports("avx2"); }
+static bool lr_has_avx512f() { return __builtin_cpu_supports("avx512f"); }
+#endif
 
 constexpr int64_t kRowBlock = 32;  // weight rows per task (mask block stays in L1)
 constexpr int64_t kMTile = 4;      // activation rows per inner tile
@@ -31,7 +55,7 @@ void scalar_block(const uint32_t* bits, const float* x, const float* rowsum, flo
         uint32_t b = row[w];
         const float* xw = xm + w * 32;
         while (b) {
-          int j = __builtin_ctz(b);
+          int j = lr_ctz(b);
           neg += xw[j];
           b &= b - 1;
         }
@@ -42,7 +66,7 @@ void scalar_block(const uint32_t* bits, const float* x, const float* rowsum, flo
 }
 
 // M == 1 (decode): 8 independent accumulators hide the add latency.
-__attribute__((target("avx512f")))
+LR_TARGET("avx512f")
 void avx512_row1(const uint32_t* bits, const float* x, float rowsum, float* out,
                  int64_t r0, int64_t r1, int64_t W) {
   for (int64_t r = r0; r < r1; ++r) {
@@ -74,7 +98,7 @@ void avx512_row1(const uint32_t* bits, const float* x, float rowsum, float* out,
   }
 }
 
-__attribute__((target("avx512f")))
+LR_TARGET("avx512f")
 void avx512_block(const uint32_t* bits, const float* x, const float* rowsum, float* out,
                   int64_t r0, int64_t r1, int64_t M, int64_t W, int64_t R) {
   const int64_t K = W * 32;
@@ -104,14 +128,14 @@ void avx512_block(const uint32_t* bits, const float* x, const float* rowsum, flo
 }
 
 // AVX2 path (CPUs without AVX-512): expand each byte of sign bits to an 8-lane mask.
-__attribute__((target("avx2")))
+LR_TARGET("avx2")
 static inline __m256 byte_mask(uint32_t byte) {
   const __m256i sel = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
   const __m256i m = _mm256_and_si256(_mm256_set1_epi32((int)byte), sel);
   return _mm256_castsi256_ps(_mm256_cmpeq_epi32(m, sel));
 }
 
-__attribute__((target("avx2")))
+LR_TARGET("avx2")
 static inline float hsum256(__m256 v) {
   __m128 lo = _mm256_castps256_ps128(v), hi = _mm256_extractf128_ps(v, 1);
   lo = _mm_add_ps(lo, hi);
@@ -120,7 +144,7 @@ static inline float hsum256(__m256 v) {
   return _mm_cvtss_f32(lo);
 }
 
-__attribute__((target("avx2")))
+LR_TARGET("avx2")
 void avx2_block(const uint32_t* bits, const float* x, const float* rowsum, float* out,
                 int64_t r0, int64_t r1, int64_t M, int64_t W, int64_t R) {
   const int64_t K = W * 32;
@@ -144,12 +168,12 @@ void avx2_block(const uint32_t* bits, const float* x, const float* rowsum, float
 }
 
 bool has_avx2() {
-  static const bool v = __builtin_cpu_supports("avx2");
+  static const bool v = lr_has_avx2();
   return v;
 }
 
 bool has_avx512() {
-  static const bool v = __builtin_cpu_supports("avx512f");
+  static const bool v = lr_has_avx512f();
   return v;
 }
 

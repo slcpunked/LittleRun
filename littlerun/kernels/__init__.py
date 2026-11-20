@@ -31,8 +31,18 @@ def packed_kernel():
             src = Path(__file__).with_name("signed_gemm.cpp")
             build = Path(os.environ.get("LITTLERUN_BUILD_DIR", Path.home() / ".cache" / "littlerun" / "kernels"))
             build.mkdir(parents=True, exist_ok=True)
-            _mod = load(name="littlerun_signed_gemm", sources=[str(src)], build_directory=str(build),
-                        extra_cflags=["-O3", "-fopenmp"], extra_ldflags=["-fopenmp"], verbose=False)
+            if os.name == "nt":  # MSVC (untested)
+                cflags, ldflags = ["/O2", "/openmp"], []
+            else:
+                cflags, ldflags = ["-O3", "-fopenmp"], ["-fopenmp"]
+            try:
+                _mod = load(name="littlerun_signed_gemm", sources=[str(src)], build_directory=str(build),
+                            extra_cflags=cflags, extra_ldflags=ldflags, verbose=False)
+            except Exception as first:  # e.g. Apple clang without OpenMP: build single-threaded instead
+                log.warning("kernel build with OpenMP failed (%s); retrying without", first)
+                _mod = load(name="littlerun_signed_gemm_serial", sources=[str(src)], build_directory=str(build),
+                            extra_cflags=[f for f in cflags if "openmp" not in f], extra_ldflags=[],
+                            verbose=False)
         except Exception as e:  # noqa: BLE001 - optional accelerator
             _failed = f"{type(e).__name__}: {e}"
             log.warning("packed kernel unavailable: %s", _failed)
