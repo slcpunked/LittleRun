@@ -1,0 +1,49 @@
+{
+ "checkpoint": "/home/user/models/littlebit-qwen3-8b-0.55bpw",
+ "source": "LittleBitLLM/littlebit-qwen3-8b-0.55bpw",
+ "revision": "6b2c47aa9707e624e2e737d16d64a66be8090ae9",
+ "options": {
+  "device": "cpu",
+  "dtype": "bf16",
+  "factor_storage": "int8",
+  "max_context": 1024,
+  "verify_hashes": false,
+  "memory_headroom": 0.9
+ },
+ "device": "cpu",
+ "load_s": 14.532005548477173,
+ "memory_estimate": {
+  "factors": 3711172608,
+  "scales": 11484288,
+  "dense": 2489935872,
+  "kv_cache": 150994944,
+  "workspace_est": 71797760,
+  "total_est": 6435385472
+ },
+ "peak_host_rss_bytes": 6097698816,
+ "host": {
+  "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "torch": "2.15.0+cpu",
+  "cpu_threads": 4,
+  "gpu": null
+ },
+ "runs": [
+  {
+   "prefill_tokens": 128,
+   "prefill_s": 2.1319378780001443,
+   "prefill_tok_s": 60.03927287040365,
+   "ttft_s": 2.1319378780001443,
+   "decode_tokens": 15,
+   "decode_tok_s": 1.2063938577203885
+  },
+  {
+   "prefill_tokens": 128,
+   "prefill_s": 2.4253560739998647,
+   "prefill_tok_s": 52.77575584557533,
+   "ttft_s": 2.4253560739998647,
+   "decode_tokens": 15,
+   "decode_tok_s": 1.4261688695865518
+  }
+ ]
+}
