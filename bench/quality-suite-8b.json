@@ -1,0 +1,154 @@
+{
+ "checkpoint": "/home/user/models/littlebit-qwen3-8b-0.55bpw",
+ "minimums_file": "/home/user/LittleRun/docs/quality_minimums.json",
+ "decoding": "greedy, thinking off, max_tokens=64",
+ "overall_pass": false,
+ "results": {
+  "json": {
+   "score": 0.0,
+   "minimum": 0.9,
+   "pass": false,
+   "rows": [
+    {
+     "prompt": "Return a JSON object with keys \"name\" (string) and \"age\" (integer) for a person named Ana aged 31.",
+     "output": "You are a precise assistant. Follow instructions exactly and answer briefly.]]></\nYou are a precise assistant. Follow instructions exactly and answer briefly.]]></\nYou are a precise assistant. Follow instructions exactly and answer briefly.]]></\nYou are a precise assistant. Follow instructions exactly and answer briefly.]]></\nYou are a precise",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with key \"colors\" whose value is a list of three color names.",
+     "output": "You are a precise assistant. Follow instructions exactly and answer briefly.\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n\u3000\u3000\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____\n _____",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with keys \"city\" (string) and \"population\" (integer) for a city of your choice.",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with key \"ok\" set to the boolean true.",
+     "output": "                                                                                                                                      ",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with keys \"x\" and \"y\", both integers, for the point (3, 4).",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with key \"title\" (string) for a book about the sea.",
+     "output": "You are a precise assistant. Follow instructions exactly and answer briefly. </__________________________________________________",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with keys \"a\" (integer 1) and \"b\" (integer 2).",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with key \"items\" containing a list of two fruit names.",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with key \"temperature\" (number) equal to 21.5.",
+     "output": "You are a precise assistant. Follow instructions exactly and answer briefly. </code: 21.5.]]></\nYou are a precise assistant. Follow instructions exactly and answer briefly. </code: 21.5.]]></\nYou are a precise assistant. Follow instructions exactly and answer briefly. </code:",
+     "pass": false
+    },
+    {
+     "prompt": "Return a JSON object with keys \"first\" and \"last\" (strings) for the name Grace Hopper.",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    }
+   ]
+  },
+  "arith": {
+   "score": 0.0,
+   "minimum": 0.8,
+   "pass": false,
+   "rows": [
+    {
+     "prompt": "What is 7 + 5?",
+     "output": "What is 7 + 5?\u3000\u3000\nWhat is 7 + 5? _____\nWhat is 7 + 5? _____\nWhat is 7 + 5? _____\nWhat is 7 + 5? _____\nWhat is 7 + 5? _____\nWhat is 7",
+     "pass": false
+    },
+    {
+     "prompt": "What is 9 * 6?",
+     "output": " 9 * 6?\u3000\u3000\nWhat is 9 * 6?\u3000\u3000\nWhat is 9 * 6? _____\nWhat is 9 * 6? _____\nWhat is 9 * 6? _____\nWhat is 9 * 6? _____\nWhat is 9 * ",
+     "pass": false
+    },
+    {
+     "prompt": "What is 100 - 37?",
+     "output": " 100 - 37?\u3000\u3000\nWhat is 100 - 37?\u3000\u3000\nWhat is 100 - 37?\u3000\u3000\nWhat is 100 - 37? _____\nWhat is 100 - 37? _____\nWhat",
+     "pass": false
+    },
+    {
+     "prompt": "What is 48 / 6?",
+     "output": " 48 / 6 is 48 / 6. What is 48 / 6?\u3000\u3000\nWhat is 48 / 6? _____\nWhat is 48 / 6? _____\nWhat is 48 / 6? _____\nWhat is 48 /",
+     "pass": false
+    },
+    {
+     "prompt": "What is 15 + 27?",
+     "output": " 15 + 27?\u3000\u3000\nWhat is 15 + 27?\u3000\u3000\nWhat is 15 + 27?\u3000\u3000\nWhat is 15 + 27? _____\nWhat is 15 + 27? _____\nWhat is 15 +",
+     "pass": false
+    },
+    {
+     "prompt": "What is 12 * 12?",
+     "output": " 12 * 12\nWhat is 12 * 12?\u3000\u3000\nWhat is 12 * 12? _____\nWhat is 12 * 12? _____\nWhat is 12 * 12? _____\nWhat is 12 * 1",
+     "pass": false
+    },
+    {
+     "prompt": "What is 81 / 9?",
+     "output": " 81 / 9 is 81 / 9. </\nWhat is 81 / 9?\u3000\u3000\nWhat is 81 / 9? _____\nWhat is 81 / 9? _____\nWhat is 81 / 9? _____\nWhat is 8",
+     "pass": false
+    },
+    {
+     "prompt": "What is 250 - 125?",
+     "output": "What is 250 - 125?\u3000\u3000\n\u3000\u3000\nWhat is 250 - 125? _____\n\u3000\u3000\nWhat is 250 - 125? _____\n_____\nWhat is 250 - 125? _____\n_____\n",
+     "pass": false
+    },
+    {
+     "prompt": "What is 13 * 3?",
+     "output": " 13 * 3?\u3000\u3000\n 13 * 3?\u3000\u3000\n 13 * 3?\u3000\u3000\n 13 * 3?\u3000\u3000\n 13 * 3? _____\n 13 * 3? _____\n 13 * 3? _____\n ",
+     "pass": false
+    },
+    {
+     "prompt": "What is 64 + 36?",
+     "output": " 64 + 36?\u3000\u3000\nWhat is 64 + 36?\u3000\u3000\nWhat is 64 + 36?\u3000\u3000\nWhat is 64 + 36? _____\nWhat is 64 + 36? _____\nWhat is 64 +",
+     "pass": false
+    }
+   ]
+  },
+  "follow": {
+   "score": 0.0,
+   "minimum": 0.6,
+   "pass": false,
+   "rows": [
+    {
+     "prompt": "Write the word hello in uppercase letters only.",
+     "output": "\u4f60 are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good assistant. You are a good",
+     "pass": false
+    },
+    {
+     "prompt": "List exactly three animals, one per line, with no other text.",
+     "output": "              10000000000000000000000000000000000000000000000000000000000000",
+     "pass": false
+    },
+    {
+     "prompt": "Reply with exactly the single word: yes",
+     "output": "You are a precise assistant. Follow instructions exactly and answer briefly. </accenture\nYou are a precise assistant. Follow instructions exactly and answer briefly. </accenture\nYou are a precise assistant. Follow instructions exactly and answer briefly. </accenture\nYou are a precise assistant. Follow instructions exactly and answer briefly.",
+     "pass": false
+    },
+    {
+     "prompt": "Write a sentence that ends with the word 'blue'.",
+     "output": "                                                                                                                                                                                                ",
+     "pass": false
+    },
+    {
+     "prompt": "Count from 1 to 5 separated by commas.",
+     "output": "    10000000000000000000000000000000000000000000000000000000000000",
+     "pass": false
+    }
+   ]
+  }
+ }
+}

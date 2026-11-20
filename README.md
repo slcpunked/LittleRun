@@ -123,6 +123,7 @@ pytest -q                                       # self-contained (fixtures gener
 LITTLEBIT_REF_PATH=/path/to/SamsungLabs/LittleBit pytest -q -m reference   # comparisons with Samsung code
 python scripts/eval_ppl.py $D --parquet wikitext-2-raw-v1-test.parquet     # WikiText-2 PPL
 python scripts/eval_mc.py $D --parquet ARC-Easy/test-00000-of-00001.parquet # ARC-Easy acc / acc_norm
+python scripts/quality_suite.py $D -o quality.json                              # agent quality suite vs docs/quality_minimums.json
 ```
 
 ## Limitations
@@ -130,8 +131,10 @@ python scripts/eval_mc.py $D --parquet ARC-Easy/test-00000-of-00001.parquet # AR
 - The packed kernel is CPU-only. On GPU, factors are unpacked to bf16 or int8 at load.
 - One architecture (Qwen3, no rope scaling, no sliding window) and one codec.
 - No tool calling, batching, speculative decoding or multi-GPU. Prefix reuse covers one stream only.
-- The pinned checkpoint's reported quality is low (ARC-Challenge below chance). Chat answers are
-  mostly unusable; plain completion is coherent. This is the checkpoint, not the runtime (see `docs/VALIDATION.md`).
+- The pinned checkpoint's quality is low. LittleRun reproduces its published WikiText-2 PPL (24.49 vs 24.48)
+  and ARC-Easy (acc 0.446 vs 0.444). It scores 0/25 on the agent quality suite (JSON, arithmetic,
+  instruction following). Plain completion is coherent; chat is not. See `docs/VALIDATION.md` §3 and §8.
+- The packed kernel's AVX2 path is 2.5–4.5× slower than its AVX-512 path; expect slower CPU decode without AVX-512.
 - Windows/WSL2 packaging is not done.
 
 ## Licensing
