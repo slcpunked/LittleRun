@@ -42,6 +42,25 @@ def test_logits_match_transformers_dense_reconstruction(tiny_ckpt, loaded_fp32):
     assert torch.equal(got.argmax(-1), want.argmax(-1))
 
 
+def test_packed_storage_matches_transformers(tiny_ckpt):
+    from littlerun.kernels import packed_kernel
+
+    if packed_kernel() is None:
+        pytest.skip("packed kernel did not build")
+    d, ref = tiny_ckpt
+    hf = _hf_dense_model(d, ref)
+    lm = load(d, options=LoadOptions(device="cpu", dtype="fp32", factor_storage="packed", max_context=64))
+    ids = [5, 17, 42, 99, 3, 250, 7, 8, 120, 64, 11]
+    with torch.no_grad():
+        want = hf(torch.tensor([ids])).logits[0].float()
+    assert (lm.model(torch.tensor([ids]), None, logits="all") - want).abs().max() < 2e-4  # GEMM path (11 rows)
+    cache = lm.adapter.create_kv_cache(lm.model, 64, lm.device)
+    lm.adapter.prefill(lm.model, ids[:4], cache)  # packed-kernel path (4 rows)
+    for i in range(4, len(ids)):
+        step = lm.adapter.decode(lm.model, ids[i], cache)
+        assert (step - want[i]).abs().max() < 2e-4, i
+
+
 def test_incremental_decode_matches_full_forward(loaded_fp32):
     lm = loaded_fp32
     ids = [5, 17, 42, 99, 3, 250, 7, 8, 120, 64, 11, 12]
@@ -158,3 +177,32 @@ def test_matches_samsung_reference_loader(samsung_ref, tmp_path):
         assert err <= tol, (dt_name, err)
         assert (got.argmax(-1) == want.argmax(-1)).float().mean() >= (1.0 if dt is torch.float32 else 0.9)
     shutil.rmtree(d)
+
+
+def test_int8mm_decode_close_to_compute(tiny_ckpt):
+    from littlerun.backends.torch_ref import int8mm_available
+
+    if not int8mm_available():
+        pytest.skip("int8mm unavailable")
+    d, _ = tiny_ckpt
+    ids = [5, 17, 42, 99, 3, 250, 7, 8]
+    outs = {}
+    for st in ("compute", "int8mm"):
+        lm = load(d, options=LoadOptions(device="cpu", dtype="bf16", factor_storage=st, max_context=64))
+        assert lm.options.factor_storage == st
+        cache = lm.adapter.create_kv_cache(lm.model, 64, lm.device)
+        steps = [lm.adapter.prefill(lm.model, ids[:3], cache)]
+        steps += [lm.adapter.decode(lm.model, t, cache) for t in ids[3:]]
+        outs[st] = torch.stack(steps)
+    rel = ((outs["int8mm"] - outs["compute"]).norm() / outs["compute"].norm()).item()
+    assert rel < 0.05, rel
+
+
+def test_auto_storage_resolution(tiny_ckpt):
+    d, _ = tiny_ckpt
+    from littlerun.kernels import packed_kernel
+
+    fp32 = load(d, options=LoadOptions(device="cpu", dtype="fp32", max_context=32)).options.factor_storage
+    assert fp32 == ("packed" if packed_kernel() is not None else "compute")
+    bf = load(d, options=LoadOptions(device="cpu", dtype="bf16", max_context=32)).options.factor_storage
+    assert bf in ("packed", "int8mm", "compute")

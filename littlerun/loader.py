@@ -27,7 +27,7 @@ _FLOATS = {"BF16", "F16", "F32"}
 class LoadOptions:
     device: str = "auto"
     dtype: str = "bf16"
-    factor_storage: str = "int8"  # "int8" | "compute"
+    factor_storage: str = "auto"  # "auto" | "int8" | "compute" | "int8mm"
     max_context: int = 4096
     verify_hashes: bool = True
     memory_headroom: float = 0.90  # fraction of available memory the estimate may use
@@ -73,8 +73,12 @@ def available_memory(device: torch.device) -> int:
 
 def estimate_memory(groups, dense_shapes, cfg, adapter, opts: LoadOptions, dtype) -> dict:
     el = torch.empty((), dtype=dtype).element_size()
-    fel = 1 if opts.factor_storage == "int8" else el
-    factors = sum(p.rank * (g.in_features + g.out_features) * fel for g in groups.values() for p in g.paths)
+    if opts.factor_storage == "packed":
+        factors = sum(4 * (g.out_features * -(-p.rank // 32) + p.rank * -(-g.in_features // 32))
+                      for g in groups.values() for p in g.paths)
+    else:
+        fel = el if opts.factor_storage == "compute" else 1
+        factors = sum(p.rank * (g.in_features + g.out_features) * fel for g in groups.values() for p in g.paths)
     scales = sum((g.in_features + g.out_features + p.rank) * el for g in groups.values() for p in g.paths)
     dense = 0
     for name, shape in dense_shapes.items():
@@ -85,11 +89,28 @@ def estimate_memory(groups, dense_shapes, cfg, adapter, opts: LoadOptions, dtype
     kv = adapter.kv_cache_bytes(cfg, opts.max_context, dtype)
     # Workspace: largest transient = one factor cast (int8 mode) + MLP activations for a 512-token prefill chunk.
     biggest = max(p.rank * max(g.in_features, g.out_features) for g in groups.values() for p in g.paths)
-    workspace = (biggest * el if opts.factor_storage == "int8" else 0) + 512 * cfg.intermediate_size * el * 4
+    workspace = (biggest * el if opts.factor_storage != "compute" else 0) + 512 * cfg.intermediate_size * el * 4
     workspace += cfg.vocab_size * 4 * 2  # fp32 logits
     total = factors + scales + dense + kv + workspace
     return {"factors": factors, "scales": scales, "dense": dense, "kv_cache": kv, "workspace_est": workspace,
             "total_est": total}
+
+
+def _resolve_storage(opts, device, dtype, groups, dense_shapes, cfg, adapter, avail) -> LoadOptions:
+    """CPU -> packed (if the kernel builds), else int8mm (bf16/fp16). GPU -> compute if it fits, else int8."""
+    from dataclasses import replace
+
+    from .backends.torch_ref import int8mm_available
+    from .kernels import packed_kernel
+
+    if device.type == "cpu" and packed_kernel() is not None:
+        return replace(opts, factor_storage="packed")
+    if device.type == "cpu" and dtype in (torch.bfloat16, torch.float16) and int8mm_available():
+        return replace(opts, factor_storage="int8mm")
+    compute = replace(opts, factor_storage="compute")
+    if estimate_memory(groups, dense_shapes, cfg, adapter, compute, dtype)["total_est"] <= avail * opts.memory_headroom:
+        return compute
+    return replace(opts, factor_storage="int8")
 
 
 def load(ckpt_dir: str | Path, *, manifest_path: str | Path | None = None, model_id: str | None = None,
@@ -134,8 +155,13 @@ def load(ckpt_dir: str | Path, *, manifest_path: str | Path | None = None, model
     if unclaimed:
         raise CheckpointError(f"unknown tensors (fail closed): {unclaimed[:5]}")
 
-    est = estimate_memory(groups, dense_shapes, cfg, adapter, opts, dtype)
     avail = available_memory(device)
+    if opts.factor_storage == "auto":
+        opts = _resolve_storage(opts, device, dtype, groups, dense_shapes, cfg, adapter, avail)
+        say(f"factor_storage=auto resolved to {opts.factor_storage}")
+    if opts.factor_storage == "packed" and device.type != "cpu":
+        raise CompatibilityError("factor_storage=packed is CPU-only in v0.2")
+    est = estimate_memory(groups, dense_shapes, cfg, adapter, opts, dtype)
     say(f"memory estimate {est['total_est'] / 2**30:.2f} GiB on {device} (available {avail / 2**30:.2f} GiB)")
     if est["total_est"] > avail * opts.memory_headroom:
         raise CompatibilityError(
@@ -145,7 +171,7 @@ def load(ckpt_dir: str | Path, *, manifest_path: str | Path | None = None, model
     say(f"decoding {len(groups)} factorized linears")
     linears = {}
     for i, (prefix, g) in enumerate(sorted(groups.items())):
-        decoded = codec.load_factors(g, reader)
+        decoded = codec.load_packed(g, reader) if opts.factor_storage == "packed" else codec.load_factors(g, reader)
         linears[prefix] = backend.build_linear(g.in_features, g.out_features, decoded, dtype,
                                                opts.factor_storage).to(device)
         del decoded

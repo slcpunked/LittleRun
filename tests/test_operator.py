@@ -104,3 +104,81 @@ def test_matches_samsung_littlebitlinear(samsung_ref):
         x = torch.randn(7, 96).to(dtype)
         a, b = ours(x).float(), ref(x).float()
         assert torch.equal(a, b), (a - b).abs().max()
+
+
+@pytest.mark.skipif(not __import__("littlerun.backends.torch_ref", fromlist=["x"]).int8mm_available(),
+                    reason="aten._weight_int8pack_mm unavailable")
+@pytest.mark.parametrize("m,n,ranks", [(37, 13, [9]), (64, 72, [20, 12]), (96, 40, [33, 31]), (4096, 1024, [208])])
+@pytest.mark.parametrize("rows", [1, 3, 16, 17, 40])
+def test_int8mm_matches_dense_in_bf16(m, n, ranks, rows):
+    """Fused int8 kernel (rows <= 16) and its cast fallback (rows > 16), odd K padded to 32."""
+    paths, W = _factors(m, n, ranks, seed=m + n)
+    op = FactorizedLinear(m, n, paths, None, torch.bfloat16, "int8mm")
+    ref_op = FactorizedLinear(m, n, paths, None, torch.bfloat16, "compute")
+    x = torch.randn(rows, m)
+    y = op(x.bfloat16()).double()
+    ref = x.double() @ W.t()
+    rel = ((y - ref).norm() / ref.norm()).item()
+    rel_ref = ((ref_op(x.bfloat16()).double() - ref).norm() / ref.norm()).item()
+    assert rel < 1.5e-2 and rel <= rel_ref * 1.5 + 1e-3, (rel, rel_ref)
+
+
+def test_int8mm_rejects_fp32():
+    paths, _ = _factors(8, 8, [4])
+    with pytest.raises(ValueError, match="bf16"):
+        FactorizedLinear(8, 8, paths, None, torch.float32, "int8mm")
+
+
+def _packed_paths(paths):
+    from littlerun.codecs.littlebit import pack_signs
+
+    return [{"U_packed": pack_signs(p["U"]), "V_packed": pack_signs(p["V"]), "rank": p["U"].shape[1],
+             **{k: p[k] for k in ("u1", "u2", "v1", "v2")}} for p in paths]
+
+
+def _kernel_or_skip():
+    from littlerun.kernels import packed_kernel
+
+    if packed_kernel() is None:
+        pytest.skip("packed kernel did not build")
+
+
+@pytest.mark.parametrize("m,n,ranks", [(37, 13, [9]), (64, 72, [20, 12]), (96, 40, [33, 31]), (512, 300, [64, 40])])
+@pytest.mark.parametrize("rows", [1, 2, 8, 9, 40])
+def test_packed_matches_dense_fp32(m, n, ranks, rows):
+    _kernel_or_skip()
+    paths, W = _factors(m, n, ranks, seed=m * n)
+    op = FactorizedLinear(m, n, _packed_paths(paths), torch.randn(n), torch.float32, "packed")
+    x = torch.randn(rows, m)
+    ref = x.double() @ W.t() + op.bias.double()
+    rel = ((op(x).double() - ref).norm() / ref.norm()).item()
+    assert rel < 1e-5, rel
+
+
+@pytest.mark.parametrize("rows", [1, 9])
+def test_packed_bf16_matches_compute_mode(rows):
+    _kernel_or_skip()
+    paths, W = _factors(256, 128, [64, 40], seed=11)
+    x = torch.randn(rows, 256).bfloat16()
+    a = FactorizedLinear(256, 128, _packed_paths(paths), None, torch.bfloat16, "packed")(x).double()
+    b = FactorizedLinear(256, 128, paths, None, torch.bfloat16, "compute")(x).double()
+    ref = x.double() @ W.t()
+    ea, eb = ((a - ref).norm() / ref.norm()).item(), ((b - ref).norm() / ref.norm()).item()
+    assert ea < 1.5e-2 and ea <= eb * 1.5 + 1e-3, (ea, eb)
+
+
+def test_packed_scalar_and_avx_paths_agree():
+    _kernel_or_skip()
+    from littlerun.codecs.littlebit import pack_signs
+    from littlerun.kernels import packed_kernel
+
+    k = packed_kernel()
+    s = torch.where(torch.randn(70, 100) < 0, -1, 1).to(torch.int8)
+    p = pack_signs(s)
+    x = torch.nn.functional.pad(torch.randn(5, 100), (0, 28))
+    ref = x[:, :100].double() @ s.double().t()
+    for force_scalar in (False, True):
+        y = k.signed_matmul(p, x, force_scalar).double()
+        assert ((y - ref).abs().max() / ref.abs().max()).item() < 1e-5
+    assert torch.equal(k.unpack_signs(p, torch.float32)[:, :100].to(torch.int8), s)
+    assert torch.equal(k.unpack_signs(p, torch.bfloat16)[:, :100].to(torch.int8), s)

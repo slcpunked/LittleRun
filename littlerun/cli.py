@@ -24,7 +24,7 @@ def _add_load_args(p):
     p.add_argument("--manifest", help="manifest path (default: <checkpoint>/littlerun.manifest.json)")
     p.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:N")
     p.add_argument("--dtype", default="bf16", choices=["bf16", "fp16", "fp32"])
-    p.add_argument("--factor-storage", default="int8", choices=["int8", "compute"])
+    p.add_argument("--factor-storage", default="auto", choices=["auto", "int8", "compute", "int8mm", "packed"])
     p.add_argument("--max-context", type=int, default=4096)
     p.add_argument("--no-verify-hashes", action="store_true", help="skip sha256 checks (inventory still checked)")
     p.add_argument("--model-id", help="model id exposed by the API")

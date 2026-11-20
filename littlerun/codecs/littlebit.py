@@ -250,6 +250,17 @@ class LittleBitCodec:
             out["bias"] = reader.get(group.bias)
         return out
 
+    def load_packed(self, group: FactorGroup, reader: TensorReader) -> dict:
+        """Return the packed words as stored (already validated) plus float scales."""
+        out = {"paths": [], "bias": None}
+        for p in group.paths:
+            sc = {k: reader.get(v).reshape(-1) for k, v in p.scales.items()}
+            out["paths"].append({"U_packed": reader.get(p.U_packed), "V_packed": reader.get(p.V_packed),
+                                 "rank": p.rank, **sc})
+        if group.bias:
+            out["bias"] = reader.get(group.bias)
+        return out
+
     def operation_spec(self) -> str:
         return OPERATION
 
