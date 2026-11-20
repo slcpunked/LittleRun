@@ -4,7 +4,8 @@ Reference inference runtime for LittleBit / LittleBit-2 sub-1-bit factorized LLM
 It implements the v0.1 scope of "LittleBit-2 Multi-Model Inference Runtime, Architecture v2.1":
 one process, one model, one decode stream, a PyTorch reference backend, and an OpenAI-style API.
 
-Status: Phases 0–2 built and tested on CPU. No GPU measurement yet.
+Status: Phases 0–2 built and tested on CPU. WikiText-2 PPL reproduces the published value (24.486 vs 24.475).
+No GPU measurement yet.
 See `docs/VALIDATION.md` for evidence and the acceptance checklist.
 
 - Technique and checkpoint audit: `docs/RESEARCH.md`

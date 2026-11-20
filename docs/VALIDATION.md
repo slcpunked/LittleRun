@@ -44,7 +44,30 @@ The Samsung code could not be executed in this session (§6). Instead I reproduc
 model card's own published metric with the same protocol (`scripts/eval_ppl.py`):
 WikiText-2 raw test, joined with "\n\n", 2048-token non-overlapping windows, no BOS.
 
-PPL_RESULT_PLACEHOLDER
+| Source | Runtime | Windows | Tokens scored | PPL |
+|---|---|---:|---:|---:|
+| Model card eval log (Samsung loader, CUDA, bf16) | upstream | 146 | 298,862 | 24.4754 |
+| LittleRun (`bench/wikitext2-ppl-cpu-bf16.json`) | CPU, bf16, compute storage | 146 | 298,862 | 24.4859 |
+
+Difference: +0.043%. Tokenisation produced 299,078 tokens and 146 windows, as in the upstream log.
+A misread sign, bit order, orientation or scale would raise PPL by orders of magnitude.
+The small gap is consistent with bf16 differences between CUDA and CPU kernels; I did not prove that.
+
+The container restarted after window 108. Windows 1–108 come from the interrupted run's log
+(`bench/wikitext2-ppl-part1.txt`, NLL rounded to 4 decimals). Windows 109–146 come from a
+resumed run (`bench/wikitext2-ppl-part2.json`). The rounding moves PPL by at most ±0.001.
+
+Live server smoke test (CPU, compute storage, context 2048):
+
+- `/health` reported `loading`, then `ready`. `/v1/models` listed backend, dtype, bpw 0.548 and capabilities.
+- `POST /v1/completions` "The capital of France is", greedy, 12 tokens →
+  " Paris, and the city is the capital of the French Republic" (`length`).
+- Streaming chat ("What is the capital of France?", thinking off, greedy) produced a valid SSE stream
+  ending in a usage chunk and `[DONE]`. The content echoed the question and then repeated "_".
+  The chat prompt matched the canonical Qwen3 format and token IDs.
+  I attribute this to the checkpoint (0.5 epoch of distillation on C4/WikiText, no chat data).
+  That attribution is an inference: the matching PPL rules out a decode error, not a template-handling difference.
+- A chat request with `tools` returned 400.
 
 ## 4. Real checkpoint: speed and memory (CPU only)
 
@@ -63,7 +86,7 @@ These numbers describe this CPU only. They say nothing about the RTX 5060 Ti.
 | Item | Status | Evidence |
 |---|---|---|
 | Pinned source and checkpoint; complete tensor mapping; license reviewed | Done | §2, `docs/RESEARCH.md` |
-| Reference model loads; numerically comparable layer and model outputs | Done on CPU | §1, §3 |
+| Reference model loads; numerically comparable layer and model outputs | Done on CPU | §1; §3 (PPL within 0.043% of published) |
 | Quality suite passes predeclared minimums | Not done | No suite or minimums declared yet. Reported ARC-Challenge is below chance. |
 | API, streaming, cancellation, overload, errors pass client tests | Done (in-process and real socket) | §1 |
 | GPU memory and throughput on RTX 5060 Ti | Blocked | No GPU in this environment |
